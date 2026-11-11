@@ -19,10 +19,12 @@
       radial-gradient(1100px 500px at 20% -10%, #161d33 0%, transparent 60%),
       radial-gradient(900px 500px at 100% 0%, #11203a 0%, transparent 55%),
       var(--bg);
-    color:var(--ink); margin:0; padding:24px 16px;
+    color:var(--ink); margin:0; padding:24px 16px 48px;
     display:flex; justify-content:center; min-height:100vh;
   }
-  .wrap{ width:100%; max-width:860px; }
+  .wrap{ width:100%; max-width:1080px; min-width:0; }
+  .back{ display:inline-block; font-family:var(--mono); font-size:.74rem; letter-spacing:.06em; color:var(--muted); text-decoration:none; margin:0 0 14px; padding:4px 0; }
+  .back:hover{ color:var(--cyan); }
   .eyebrow{ font-family:var(--mono); font-size:.72rem; letter-spacing:.32em; text-transform:uppercase; color:var(--cyan); margin:0 0 6px; }
   h1{ margin:0 0 6px; font-size:1.7rem; letter-spacing:-.02em; }
   .lede{ color:var(--muted); font-size:.95rem; margin:0 0 20px; line-height:1.5; }
@@ -133,11 +135,12 @@
   .ws-title{ display:block; font-weight:700; font-size:1rem; letter-spacing:-.01em; }
   .ws-sub{ display:block; color:var(--muted); font-size:.85rem; margin-top:2px; line-height:1.4; }
   .ws-go{ flex:0 0 auto; font-family:var(--mono); font-size:.78rem; color:var(--cyan); white-space:nowrap; }
-  @media (max-width:560px){ .row .cap{ flex-basis:104px; font-size:.62rem; } h1{ font-size:1.4rem; } .meter-cap{ font-size:.6rem; } .meter-cap .hint{ display:none; } }
+  @media (max-width:560px){ body{ padding:16px 12px 40px; } .row .cap{ flex-basis:104px; font-size:.62rem; } h1{ font-size:1.4rem; } .meter-cap{ font-size:.6rem; } .meter-cap .hint{ display:none; } }
 </style>
 </head>
 <body>
 <div class="wrap">
+  <a class="back" href="../index.html">← Chemistry simulations</a>
   <p class="eyebrow">Collision Theory · Reaction Kinetics</p>
   <h1>Collision Theory Simulation</h1>
   <p class="lede">A reaction needs two things to happen: the molecules must collide in the right <em>orientation</em>, and with enough <em>energy</em> to clear the activation barrier.</p>
@@ -363,6 +366,7 @@ const PRETTY = {NO:"NO",O2:"O₂",O3:"O₃",NO2:"NO₂",NO2t:"NO₂",CO:"CO",CO2
 const cv = document.getElementById("sim");
 const ctx = cv.getContext("2d");
 const W = cv.width, H = cv.height;
+(function(){ const dpr = Math.min(window.devicePixelRatio || 1, 2.5) * 1.3; cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr); ctx.setTransform(cv.width/W, 0, 0, cv.height/H, 0, 0); })();   // sharper drawing on wide and high-density screens
 const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const el = id => document.getElementById(id);
 const sel = el("reactionSelect");
