@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Virtual Colorimeter Prac</title>
+<style>
+:root{
+  --bg:#0a0d18; --panel:#141a2b; --panel-2:#1b2236; --line:#27304a;
+  --ink:#e8edf7; --muted:#92a0bd; --cyan:#34d3ee; --green:#34d399;
+  --red:#fb7185; --amber:#fbbf24;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#9085e9;
+  --mono:ui-monospace,"SF Mono","Cascadia Code","JetBrains Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:var(--sans);
+  background:
+    radial-gradient(1100px 500px at 20% -10%, #161d33 0%, transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, #11203a 0%, transparent 55%),
+    var(--bg);
+  color:var(--ink); margin:0; padding:24px 16px 48px;
+  display:flex; justify-content:center; min-height:100vh;
+}
+.wrap{ width:100%; max-width:860px; min-width:0; }
+.wrap.wide{ max-width:1080px; }
+a{ color:var(--cyan); }
+.back{ display:inline-block; font-family:var(--mono); font-size:.74rem; letter-spacing:.06em; color:var(--muted); text-decoration:none; margin:0 0 14px; padding:4px 0; }
+.back:hover{ color:var(--cyan); }
+.eyebrow{ font-family:var(--mono); font-size:.72rem; letter-spacing:.32em; text-transform:uppercase; color:var(--cyan); margin:0 0 6px; }
+h1{ margin:0 0 6px; font-size:1.7rem; letter-spacing:-.02em; text-wrap:balance; }
+h2{ margin:0 0 8px; font-size:1.05rem; letter-spacing:-.01em; }
+h3{ margin:0 0 6px; font-size:.92rem; }
+.lede{ color:var(--muted); font-size:.95rem; margin:0 0 20px; line-height:1.5; max-width:70ch; }
+.panel{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:14px; min-width:0; }
+.cols{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:14px; align-items:start; }
+.cols > *{ min-width:0; }
+@media (max-width:820px){ .cols{ grid-template-columns:minmax(0,1fr); } }
+label.cap, .cap{ font-family:var(--mono); font-size:.7rem; letter-spacing:.18em; text-transform:uppercase; color:var(--muted); }
+.field{ display:flex; flex-direction:column; gap:6px; flex:1 1 220px; min-width:0; }
+.pick{ display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; margin-bottom:14px; }
+.select-wrap{ position:relative; border:1px solid var(--line); border-radius:9px; background:var(--panel-2); overflow:hidden; }
+select{
+  appearance:none; -webkit-appearance:none; background:var(--panel-2); color:var(--ink);
+  border:none; border-radius:9px; padding:11px 38px 11px 13px; display:block;
+  font-size:.95rem; font-family:var(--sans); cursor:pointer; width:100%; outline:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2392a0bd' d='M6 8 0 0h12z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 14px center;
+}
+select:focus-visible{ box-shadow:0 0 0 2px var(--cyan) inset; }
+select option{ background:var(--panel-2); color:var(--ink); }
+.blurb{ color:var(--muted); font-size:.86rem; line-height:1.5; margin:0 0 14px; }
+.eqn{ font-family:var(--mono); font-size:.98rem; color:var(--ink); background:var(--panel-2); border:1px solid var(--line); border-radius:9px; padding:10px 12px; margin:0 0 12px; overflow-x:auto; white-space:nowrap; }
+.eqn .dh{ color:var(--muted); margin-left:10px; font-size:.82rem; }
+.chamber-shell{ position:relative; }
+canvas{ display:block; width:100%; border-radius:11px; border:1px solid var(--line); background:#070a13; touch-action:pan-y; }
+.chip{
+  position:absolute; top:10px; left:10px; font-family:var(--mono); font-size:.66rem;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--amber);
+  background:rgba(10,13,24,.72); border:1px solid var(--line);
+  padding:5px 9px; border-radius:7px; backdrop-filter:blur(4px); pointer-events:none; max-width:calc(100% - 20px);
+}
+.status{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:12px 0 4px; min-height:30px; }
+.verdict{ font-size:1.02rem; font-weight:700; letter-spacing:-.01em; }
+.pill{
+  font-family:var(--mono); font-size:.72rem; letter-spacing:.04em; padding:5px 10px;
+  border-radius:999px; border:1px solid var(--line); color:var(--muted);
+  background:var(--panel-2); white-space:nowrap; display:inline-block;
+}
+.pill.ok{ color:#062b1e; background:var(--green); border-color:transparent; font-weight:700; }
+.pill.bad{ color:#3a0410; background:var(--red); border-color:transparent; font-weight:700; }
+.pill.warn{ color:#3a2a02; background:var(--amber); border-color:transparent; font-weight:700; }
+.pill.na{ opacity:.7; }
+.controls{ display:flex; flex-direction:column; gap:14px; margin-top:14px; }
+.row{ display:flex; align-items:center; gap:12px; min-width:0; }
+.row .cap{ flex:0 0 132px; }
+.val{ font-family:var(--mono); font-size:.85rem; color:var(--ink); flex:0 0 78px; text-align:right; white-space:nowrap; }
+
+.aslider{ position:relative; flex:1 1 auto; height:22px; cursor:grab; touch-action:none; min-width:60px; }
+.aslider:active{ cursor:grabbing; }
+.aslider:focus-visible{ outline:2px solid var(--cyan); outline-offset:4px; border-radius:6px; }
+.aslider-track{ position:absolute; left:0; right:0; top:50%; height:6px; transform:translateY(-50%); border-radius:6px; background:var(--line); overflow:hidden; }
+.aslider-fill{ position:absolute; left:0; top:0; bottom:0; width:0; background:rgba(52,211,238,.45); }
+.aslider-thumb{ position:absolute; top:50%; left:0; transform:translate(-50%,-50%);
+  width:18px; height:18px; border-radius:50%; background:var(--ink);
+  border:3px solid var(--cyan); box-shadow:0 0 10px rgba(52,211,238,.5);
+  z-index:2; pointer-events:none; }
+.aslider.disabled{ opacity:.45; cursor:not-allowed; pointer-events:none; }
+
+.toggles{ display:flex; gap:16px; flex-wrap:wrap; }
+.toggle{ display:flex; align-items:center; gap:8px; font-size:.85rem; color:var(--muted); cursor:pointer; user-select:none; }
+.toggle input{ accent-color:var(--cyan); width:16px; height:16px; cursor:pointer; }
+.btns{ display:flex; gap:10px; flex-wrap:wrap; }
+button{ padding:11px 18px; font-size:.92rem; font-weight:700; font-family:var(--sans); border:none; border-radius:9px; cursor:pointer; transition:transform .06s, background .15s, box-shadow .15s, border-color .15s; color:var(--ink); }
+button:active{ transform:translateY(1px); }
+button:focus-visible{ outline:2px solid var(--cyan); outline-offset:2px; }
+.fire{ background:var(--cyan); color:#04212b; box-shadow:0 0 18px -2px var(--cyan); }
+.fire:hover{ background:#5fe0f4; }
+.fire:disabled{ background:#2a3550; color:#5d6a8a; box-shadow:none; cursor:not-allowed; }
+.ghost{ background:transparent; color:var(--ink); border:1px solid var(--line); }
+.ghost:hover{ background:var(--panel-2); }
+.ghost:disabled{ color:#5d6a8a; cursor:not-allowed; background:transparent; }
+.ghost.on{ border-color:var(--cyan); box-shadow:0 0 0 1px var(--cyan) inset; }
+.small{ padding:8px 12px; font-size:.82rem; }
+.seg{ display:inline-flex; flex-wrap:wrap; gap:4px; background:var(--panel-2); border:1px solid var(--line); border-radius:11px; padding:4px; max-width:100%; }
+.seg button{ background:transparent; color:var(--muted); padding:8px 13px; font-size:.84rem; border-radius:8px; font-weight:600; }
+.seg button.on{ background:var(--cyan); color:#04212b; }
+.seg button:not(.on):hover{ color:var(--ink); }
+.tabs{ margin:0 0 14px; }
+.stats{ display:flex; gap:10px; flex-wrap:wrap; margin:0 0 14px; }
+.stat{ flex:1 1 120px; background:var(--panel); border:1px solid var(--line); border-radius:11px; padding:12px 14px; min-width:0; }
+.stat .n{ font-family:var(--mono); font-size:1.35rem; color:var(--cyan); line-height:1.1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.stat .l{ font-size:.7rem; color:var(--muted); margin-top:5px; letter-spacing:.04em; text-transform:uppercase; }
+.note{ color:var(--muted); font-size:.86rem; line-height:1.55; margin:0; }
+.note b, .note strong{ color:var(--ink); }
+.callout{ border:1px solid var(--line); border-left:3px solid var(--cyan); background:var(--panel-2); border-radius:9px; padding:11px 13px; font-size:.88rem; line-height:1.55; color:var(--ink); margin:12px 0 0; }
+.callout.good{ border-left-color:var(--green); }
+.callout.bad{ border-left-color:var(--red); }
+.callout.warn{ border-left-color:var(--amber); }
+.callout p{ margin:0 0 6px; } .callout p:last-child{ margin:0; }
+.cap.plain, .chart-title.plain, .chip.plain{ text-transform:none; }
+.callout .k.plain{ text-transform:none; letter-spacing:.04em; font-size:.8rem; color:var(--ink); }
+.callout .k{ font-family:var(--mono); font-size:.68rem; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:2px; }
+details.more{ border:1px solid var(--line); border-radius:11px; background:var(--panel); margin-bottom:14px; }
+details.more > summary{ cursor:pointer; padding:13px 16px; font-weight:700; font-size:.95rem; list-style:none; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+details.more > summary::-webkit-details-marker{ display:none; }
+details.more > summary::after{ content:"+"; font-family:var(--mono); color:var(--cyan); font-size:1.1rem; }
+details.more[open] > summary::after{ content:"–"; }
+details.more > .body{ padding:0 16px 16px; color:var(--muted); font-size:.9rem; line-height:1.6; }
+details.more > .body p{ margin:0 0 10px; } details.more > .body p:last-child{ margin:0; }
+details.more > .body b{ color:var(--ink); }
+details.more > .body ul{ margin:0 0 10px; padding-left:20px; } details.more > .body li{ margin-bottom:5px; }
+
+/* Q vs K bar */
+.qk{ margin-top:12px; }
+.qk-track{ position:relative; height:10px; border-radius:6px; background:linear-gradient(90deg, rgba(57,135,229,.5), var(--line) 50%, rgba(217,89,38,.5)); margin:20px 10px 6px; }
+.qk-k{ position:absolute; left:50%; top:-5px; bottom:-5px; width:3px; margin-left:-1.5px; background:var(--amber); border-radius:2px; }
+.qk-k::after{ content:"K"; position:absolute; top:-16px; left:50%; transform:translateX(-50%); font-family:var(--mono); font-size:.68rem; font-weight:700; color:var(--amber); }
+.qk-q{ position:absolute; top:50%; width:16px; height:16px; border-radius:50%; background:var(--ink); border:3px solid var(--cyan); transform:translate(-50%,-50%); transition:left .12s linear; }
+.qk-cap{ display:flex; justify-content:space-between; font-family:var(--mono); font-size:.64rem; color:var(--muted); gap:8px; }
+
+/* charts */
+.chart{ position:relative; }
+.chart-title{ font-family:var(--mono); font-size:.7rem; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin:0 0 8px; }
+.chart canvas{ cursor:crosshair; }
+.legend{ display:flex; flex-wrap:wrap; gap:6px 14px; margin:8px 2px 0; font-size:.8rem; color:var(--muted); }
+.legend span{ display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
+.legend i{ display:inline-block; width:18px; height:0; border-top:3px solid; border-radius:2px; }
+.legend i.dash{ border-top-style:dashed; }
+.tip{ position:absolute; z-index:5; pointer-events:none; background:rgba(10,13,24,.94); border:1px solid var(--line); border-radius:8px; padding:7px 9px; font-size:.76rem; color:var(--muted); min-width:110px; box-shadow:0 8px 24px -10px #000; }
+.tip .tx{ font-family:var(--mono); font-size:.68rem; letter-spacing:.06em; margin-bottom:4px; }
+.tip .tr{ display:flex; align-items:center; gap:6px; justify-content:space-between; white-space:nowrap; }
+.tip .tr i{ display:inline-block; width:12px; height:0; border-top:3px solid; margin-right:5px; vertical-align:middle; }
+.tip .tr b{ color:var(--ink); font-family:var(--mono); font-weight:600; margin-left:10px; }
+
+/* quiz */
+.quiz{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:14px; }
+.quiz-head{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+.quiz-head .cap{ color:var(--cyan); }
+.quiz-q{ font-size:.98rem; line-height:1.5; margin:0 0 12px; }
+.opts{ display:flex; flex-direction:column; gap:8px; }
+.opts.inline{ flex-direction:row; flex-wrap:wrap; }
+.opt{ text-align:left; background:var(--panel-2); border:1px solid var(--line); color:var(--ink); font-weight:500; font-size:.9rem; line-height:1.4; padding:11px 13px; }
+.opt:hover:not(:disabled){ border-color:var(--cyan); }
+.opt:disabled{ cursor:default; opacity:.75; }
+.opt.right{ border-color:var(--green); box-shadow:0 0 0 1px var(--green) inset; opacity:1; }
+.opt.wrong{ border-color:var(--red); box-shadow:0 0 0 1px var(--red) inset; opacity:1; }
+.opt .mk{ font-family:var(--mono); margin-right:8px; }
+input.num, input.txt{ background:var(--panel-2); border:1px solid var(--line); color:var(--ink); border-radius:8px; padding:9px 10px; font-family:var(--mono); font-size:.9rem; width:100%; min-width:0; outline:none; }
+input.num:focus, input.txt:focus{ border-color:var(--cyan); }
+input.right{ border-color:var(--green)!important; box-shadow:0 0 0 1px var(--green) inset; }
+input.wrong{ border-color:var(--red)!important; box-shadow:0 0 0 1px var(--red) inset; }
+select.right{ box-shadow:0 0 0 2px var(--green) inset; } select.wrong{ box-shadow:0 0 0 2px var(--red) inset; }
+.ans{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:10px; }
+.ans label{ font-size:.86rem; color:var(--muted); }
+.ans input{ flex:1 1 140px; max-width:220px; }
+table.tbl{ border-collapse:collapse; width:100%; font-size:.86rem; }
+table.tbl th, table.tbl td{ border:1px solid var(--line); padding:7px 8px; text-align:center; }
+table.tbl th{ font-family:var(--mono); font-size:.7rem; letter-spacing:.08em; color:var(--muted); font-weight:600; background:var(--panel-2); }
+table.tbl td.lh, table.tbl th.lh{ text-align:left; color:var(--muted); white-space:nowrap; }
+.scroll-x{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.mono{ font-family:var(--mono); }
+.muted{ color:var(--muted); }
+.hide{ display:none !important; }
+
+a.worksheet{
+  display:flex; align-items:center; gap:14px; text-decoration:none;
+  margin-top:18px; padding:15px 17px;
+  border:1px solid var(--line); border-radius:12px;
+  background:linear-gradient(180deg, var(--panel-2), var(--panel));
+  color:var(--ink); transition:border-color .15s, transform .06s, box-shadow .15s;
+}
+a.worksheet[hidden]{ display:none; }
+a.worksheet:hover{ border-color:var(--cyan); box-shadow:0 0 0 1px var(--cyan) inset, 0 10px 30px -20px var(--cyan); }
+.ws-icon{ color:var(--cyan); flex:0 0 auto; display:flex; }
+.ws-text{ flex:1 1 auto; min-width:0; }
+.ws-title{ display:block; font-weight:700; font-size:1rem; letter-spacing:-.01em; }
+.ws-sub{ display:block; color:var(--muted); font-size:.85rem; margin-top:2px; line-height:1.4; }
+.ws-go{ flex:0 0 auto; font-family:var(--mono); font-size:.78rem; color:var(--cyan); white-space:nowrap; }
+
+@media (max-width:560px){
+  body{ padding:16px 12px 40px; }
+  h1{ font-size:1.4rem; }
+  .panel, .quiz{ padding:13px; }
+  .row{ gap:9px; }
+  .row .cap{ flex-basis:92px; font-size:.6rem; letter-spacing:.12em; }
+  .val{ flex-basis:64px; font-size:.78rem; }
+  button{ padding:10px 14px; font-size:.88rem; }
+  .stat{ flex-basis:96px; padding:10px 11px; } .stat .n{ font-size:1.1rem; }
+  .seg button{ padding:8px 10px; font-size:.8rem; }
+}
+@media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
+.rack{ display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
+.rack button{ padding:0; flex:1 1 40px; min-width:40px; max-width:64px; background:var(--panel-2); border:1px solid var(--line); border-radius:8px; overflow:hidden; display:flex; flex-direction:column; align-items:stretch; }
+.rack button i{ display:block; height:26px; }
+.rack button span{ font-family:var(--mono); font-size:.68rem; padding:4px 0; color:var(--muted); font-weight:600; }
+.rack button.on{ border-color:var(--cyan); box-shadow:0 0 0 1px var(--cyan) inset; }
+.rack button.on span{ color:var(--ink); }
+.rack button.read span::after{ content:" ✓"; color:var(--green); }
+ol.method{ margin:0; padding-left:20px; color:var(--muted); font-size:.88rem; line-height:1.6; }
+ol.method b{ color:var(--ink); }
+.tbl td input.num{ min-width:92px; padding:7px 6px; text-align:center; font-size:.82rem; }
+.tbl td.m{ font-family:var(--mono); white-space:nowrap; }
+h2.sec{ font-size:.95rem; margin:0 0 10px; }
+</style>
+</head>
+<body>
+<!-- WORKSHEET LINK: put your PDF in this folder, then write its file name between the quotes below (e.g. "worksheet.pdf"). Leave empty to hide the link. -->
+<script>window.WORKSHEET_URL = "";</script>
+<div class="wrap wide">
+  <a class="back" href="../index.html">← All simulations</a>
+  <p class="eyebrow">Module 5 · Calculating the Equilibrium Constant</p>
+  <h1>Virtual Colorimeter Prac</h1>
+  <p class="lede">Determine Keq for the iron(III) thiocyanate equilibrium. Build a calibration line from standards, measure five equilibrium mixtures, then process your own data. Every reading has realistic random error.</p>
+<div class="panel">
+  <p class="eqn">Fe³⁺(aq) + SCN⁻(aq) ⇌ FeSCN²⁺(aq)<span class="dh">pale yellow + colourless ⇌ blood red</span></p>
+  <ol class="method">
+    <li><b>Zero</b> the colorimeter with the blank.</li>
+    <li>Measure standards <b>S1 to S5</b>. In these, Fe³⁺ is in huge excess, so assume all the SCN⁻ becomes FeSCN²⁺.</li>
+    <li>Measure equilibrium mixtures <b>M1 to M5</b>.</li>
+    <li>Use the calibration line to find [FeSCN²⁺] in each mixture, then use an ICE table to find K.</li>
+  </ol>
+</div>
+
+<div class="panel">
+  <div class="cols">
+    <div>
+      <p class="chart-title">Colorimeter · blue light</p>
+      <canvas id="meter" role="img" aria-label="Colorimeter: a blue light beam passes through the cuvette to a detector"></canvas>
+      <div class="rack" id="rack"></div>
+      <div class="btns" style="margin-top:12px">
+        <button class="ghost" id="zeroBtn">Zero with blank</button>
+        <button class="fire" id="measBtn">Measure</button>
+      </div>
+      <div class="status"><span class="verdict" id="verdict">Select the blank and zero the colorimeter</span></div>
+    </div>
+    <div>
+      <p class="chart-title">Calibration line</p>
+      <canvas id="cal" role="img" aria-label="Calibration graph of absorbance against concentration of the standards"></canvas>
+      <p class="note" id="fitNote" style="margin-top:8px">Measure at least two standards to draw the line of best fit.</p>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <h2 class="sec">Standards</h2>
+  <p class="note" style="margin-bottom:10px">Each standard: 25.0 mL of 0.200 mol L⁻¹ Fe(NO₃)₃ plus the volume of 0.00200 mol L⁻¹ KSCN shown, made up to 50.0 mL.</p>
+  <div class="scroll-x"><table class="tbl" id="stdTbl"></table></div>
+</div>
+
+<div class="panel">
+  <h2 class="sec">Equilibrium mixtures</h2>
+  <p class="note" style="margin-bottom:10px">Each mixture: 5.00 mL of 0.00200 mol L⁻¹ Fe(NO₃)₃ plus the volume of 0.00200 mol L⁻¹ KSCN shown, made up to 10.0 mL with water. The initial concentrations after mixing are given.</p>
+  <div class="scroll-x"><table class="tbl" id="mixTbl"></table></div>
+  <div class="ans"><label for="avgK">Average K =</label><input class="num" id="avgK" type="text" autocomplete="off" placeholder="e.g. 142"></div>
+  <div class="btns" style="margin-top:14px">
+    <button class="fire" id="checkBtn">Check my calculations</button>
+    <button class="ghost" id="exampleBtn">Show working for M1</button>
+    <button class="ghost" id="resetBtn">Start again</button>
+  </div>
+  <div id="fb"></div>
+</div>
+
+<details class="more">
+  <summary>About this model and its limits</summary>
+  <div class="body">
+    <p>The absorbance of each solution is calculated from the true equilibrium concentration of FeSCN²⁺ using the Beer–Lambert law, with a small random error added to every reading. Repeat a measurement and you will get a slightly different value.</p>
+    <p><b>A built-in systematic error:</b> the method assumes that every SCN⁻ ion in a standard becomes FeSCN²⁺. Even with at least a 500-fold excess of Fe³⁺, a few percent stays unreacted, so the true concentrations of the standards are slightly lower than assumed. This makes your calibration line slightly too shallow and your value of K slightly too high. The same thing happens in the real experiment.</p>
+    <p>Your calculations are checked against your own measurements, so there is no single right number.</p>
+  </div>
+</details>
+
+<div id="quiz"></div>
+  <a class="worksheet" id="worksheet" href="#" target="_blank" rel="noopener" hidden>
+    <span class="ws-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h7l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"></path><path d="M13 2v5h5"></path><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="13" y2="17"></line></svg></span>
+    <span class="ws-text"><span class="ws-title">Worksheet</span><span class="ws-sub">Virtual Colorimeter Prac investigation (PDF).</span></span>
+    <span class="ws-go">Open&nbsp;→</span>
+  </a>
+</div>
+<script>
+/* ===== shared helpers for the equilibrium simulations ===== */
+"use strict";
+const $ = id => document.getElementById(id);
+const reduceMotion = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const lerp = (a,b,t) => a + (b-a)*t;
+const rand = (a,b) => a + Math.random()*(b-a);
+const pick = arr => arr[Math.floor(Math.random()*arr.length)];
+function shuffle(arr){ const a = arr.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+const SERIES = ["#3987e5","#d95926","#199e70","#c98500","#d55181","#9085e9"];   // colour-blind-checked order
+const INK = "#e8edf7", MUTED = "#92a0bd", LINE = "#27304a";
+const FONT = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif';
+const MONO = 'ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace';
+
+/* ---------- number formatting / parsing ---------- */
+const SUPS = {"0":"⁰","1":"¹","2":"²","3":"³","4":"⁴","5":"⁵","6":"⁶","7":"⁷","8":"⁸","9":"⁹","-":"⁻","+":"⁺"};
+const UNSUP = {}; Object.keys(SUPS).forEach(k => UNSUP[SUPS[k]] = k);
+function sup(n){ return String(n).replace(/[0-9+\-]/g, c => SUPS[c]); }
+function sci(x, sf){
+  sf = sf || 3;
+  if(!isFinite(x)) return "—";
+  if(x === 0) return "0";
+  let e = Math.floor(Math.log10(Math.abs(x)));
+  let m = Number((x / Math.pow(10, e)).toPrecision(sf));
+  if(Math.abs(m) >= 10){ m /= 10; e++; }
+  return m.toFixed(sf-1) + " × 10" + sup(e);
+}
+function num(x, sf){
+  sf = sf || 3;
+  if(!isFinite(x)) return "—";
+  if(x === 0) return "0";
+  const a = Math.abs(x);
+  if(a >= 0.001 && a < 100000){ const s = x.toPrecision(sf); return (s.indexOf("e") >= 0 ? String(Number(s)) : s).replace("-", "−"); }
+  return sci(x, sf).replace("-", "−");
+}
+function parseNum(str){
+  if(str === null || str === undefined) return NaN;
+  let s = String(str).trim().toLowerCase().replace(/\s+/g, "").replace(/,/g, "").replace(/−/g, "-");
+  if(!s) return NaN;
+  s = s.replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺]/g, c => UNSUP[c]);
+  s = s.replace(/^10\^?\(?([+-]?\d+)\)?$/, "1e$1");                 // 10^-5
+  s = s.replace(/[×x*]10\^?\(?([+-]?\d+)\)?/, "e$1");               // 1.8x10^-5, 1.8×10-5
+  if(!/^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/.test(s)) return NaN;
+  return parseFloat(s);
+}
+function closeTo(a, b, tol){ if(!isFinite(a)) return false; if(b === 0) return Math.abs(a) < 1e-12; return Math.abs(a-b) <= Math.abs(b)*(tol === undefined ? 0.02 : tol); }
+
+/* ---------- colour ---------- */
+function hexRgb(h){ if(Array.isArray(h)) return h; if(h.charAt(0) === "r") return h.match(/[\d.]+/g).slice(0,3).map(Number); h = h.replace("#",""); if(h.length===3) h = h.split("").map(c=>c+c).join(""); const n = parseInt(h,16); return [(n>>16)&255,(n>>8)&255,n&255]; }
+function mixRgb(a, b, t){ t = clamp(t,0,1); return [Math.round(lerp(a[0],b[0],t)), Math.round(lerp(a[1],b[1],t)), Math.round(lerp(a[2],b[2],t))]; }
+function mixHex(h1, h2, t){ const c = mixRgb(hexRgb(h1), hexRgb(h2), t); return "rgb("+c[0]+","+c[1]+","+c[2]+")"; }
+function ramp(stops, t){ t = clamp(t, 0, 1); for(let i=1;i<stops.length;i++){ if(t <= stops[i][0]){ const a = stops[i-1], b = stops[i]; return mixHex(a[1], b[1], (t-a[0])/(b[0]-a[0] || 1)); } } return mixHex(stops[stops.length-1][1], stops[stops.length-1][1], 0); }
+function rgba(hex, a){ const c = Array.isArray(hex) ? hex : hexRgb(hex); return "rgba("+c[0]+","+c[1]+","+c[2]+","+a+")"; }
+
+/* ---------- canvas stage: DPR-aware, responsive, optional animation loop ---------- */
+function stage(cv, o){
+  const ctx = cv.getContext("2d");
+  const api = { ctx, w:0, h:0, t:0, redraw, resize };
+  let raf = 0, last = 0;
+  function resize(){
+    const w = Math.max(120, Math.round(cv.clientWidth || cv.parentElement.clientWidth || 300));
+    const h = Math.round(typeof o.height === "function" ? o.height(w) : (o.height || w*0.5));
+    if(w === api.w && h === api.h) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    cv.style.height = h + "px";
+    cv.width = Math.round(w*dpr); cv.height = Math.round(h*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    api.w = w; api.h = h;
+    if(o.onResize) o.onResize(w, h);
+    if(!o.animate) redraw();
+  }
+  function redraw(){ if(api.w) o.draw(ctx, api.w, api.h, 0, api.t); }
+  function loop(ts){
+    const dt = last ? Math.min(0.05, (ts-last)/1000) : 0.016; last = ts; api.t += dt;
+    if(api.w) o.draw(ctx, api.w, api.h, dt, api.t);
+    raf = requestAnimationFrame(loop);
+  }
+  if(window.ResizeObserver){ new ResizeObserver(resize).observe(cv.parentElement); }
+  window.addEventListener("resize", resize);
+  resize();
+  if(o.animate) raf = requestAnimationFrame(loop);
+  return api;
+}
+function rr(ctx, x, y, w, h, r){
+  r = Math.min(r, Math.abs(w)/2, Math.abs(h)/2);
+  ctx.beginPath(); ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h); ctx.lineTo(x+r,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-r); ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+}
+function chamberBg(ctx, w, h){
+  const g = ctx.createRadialGradient(w*0.5,h*0.45,20, w*0.5,h*0.5, Math.max(w,h)*0.75);
+  g.addColorStop(0,"#121a2e"); g.addColorStop(1,"#070a13");
+  ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
+  ctx.fillStyle = "rgba(255,255,255,0.025)";
+  for(let gx=20; gx<w; gx+=34) for(let gy=20; gy<h; gy+=34){ ctx.beginPath(); ctx.arc(gx,gy,1.1,0,7); ctx.fill(); }
+}
+function label(ctx, text, x, y, o){
+  o = o || {};
+  ctx.font = (o.bold ? "600 " : "") + (o.size || 12) + "px " + (o.mono ? MONO : FONT);
+  ctx.fillStyle = o.color || MUTED; ctx.textAlign = o.align || "left"; ctx.textBaseline = o.base || "middle";
+  ctx.fillText(text, x, y);
+}
+
+/* ---------- div-based slider (same look as the collision sim) ---------- */
+function slider(el, o){
+  let min = o.min, max = o.max; const step = o.step || 1, log = !!o.log;
+  el.classList.add("aslider"); el.setAttribute("role","slider"); el.tabIndex = 0;
+  if(o.label) el.setAttribute("aria-label", o.label);
+  el.innerHTML = '<div class="aslider-track"><div class="aslider-fill"></div></div><div class="aslider-thumb"></div>';
+  const thumb = el.querySelector(".aslider-thumb"), fill = el.querySelector(".aslider-fill");
+  let value = o.value;
+  const toFrac = v => log ? (Math.log(v)-Math.log(min))/(Math.log(max)-Math.log(min)) : (v-min)/(max-min);
+  const fromFrac = f => log ? Math.exp(Math.log(min) + f*(Math.log(max)-Math.log(min))) : min + f*(max-min);
+  function snap(v){ if(log) return clamp(v, min, max); return clamp(Math.round((v-min)/step)*step + min, min, max); }
+  function paint(){
+    const f = clamp(toFrac(value),0,1);
+    thumb.style.left = "calc(9px + "+f+" * (100% - 18px))";
+    fill.style.width = (f*100)+"%";
+    el.setAttribute("aria-valuemin", min); el.setAttribute("aria-valuemax", max);
+    el.setAttribute("aria-valuenow", log ? value.toPrecision(3) : value);
+    const txt = o.fmt ? o.fmt(value) : String(value);
+    el.setAttribute("aria-valuetext", txt);
+    if(o.out) o.out.textContent = txt;
+  }
+  function set(v, fire){ value = snap(v); paint(); if(fire && o.onInput) o.onInput(value); }
+  function fromPointer(e){ const r = el.getBoundingClientRect(); return fromFrac(clamp((e.clientX - r.left - 9)/(r.width - 18), 0, 1)); }
+  let drag = false;
+  el.addEventListener("pointerdown", e => { if(el.classList.contains("disabled")) return; drag = true; try{ el.setPointerCapture(e.pointerId); }catch(_){ } set(fromPointer(e), true); e.preventDefault(); });
+  el.addEventListener("pointermove", e => { if(drag) set(fromPointer(e), true); });
+  el.addEventListener("pointerup", () => { drag = false; if(o.onChange) o.onChange(value); });
+  el.addEventListener("pointercancel", () => { drag = false; });
+  el.addEventListener("keydown", e => {
+    if(el.classList.contains("disabled")) return;
+    const big = e.shiftKey ? 10 : 1; let f = toFrac(value);
+    const dv = log ? 0 : step*big, df = 0.02*big;
+    if(e.key==="ArrowLeft"||e.key==="ArrowDown") set(log ? fromFrac(clamp(f-df,0,1)) : value - dv, true);
+    else if(e.key==="ArrowRight"||e.key==="ArrowUp") set(log ? fromFrac(clamp(f+df,0,1)) : value + dv, true);
+    else if(e.key==="Home") set(min, true);
+    else if(e.key==="End") set(max, true);
+    else return;
+    if(o.onChange) o.onChange(value);
+    e.preventDefault();
+  });
+  paint();
+  return { get value(){ return value; }, set, setRange(a, b){ min = a; max = b; value = snap(value); paint(); }, disable(d){ el.classList.toggle("disabled", !!d); el.tabIndex = d ? -1 : 0; } };
+}
+
+/* ---------- segmented control ---------- */
+function seg(el, cb){
+  const btns = Array.from(el.querySelectorAll("button"));
+  function set(v, fire){ btns.forEach(b => { const on = b.dataset.v === v; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); }); if(fire !== false && cb) cb(v); }
+  btns.forEach(b => b.addEventListener("click", () => set(b.dataset.v)));
+  const init = btns.find(b => b.classList.contains("on")) || btns[0];
+  btns.forEach(b => b.setAttribute("aria-pressed", b === init));
+  return { set, get value(){ const b = btns.find(x => x.classList.contains("on")); return b ? b.dataset.v : null; } };
+}
+/* simple tab switcher: buttons with data-v, panes with data-pane */
+function tabs(segEl, onShow){
+  return seg(segEl, v => {
+    document.querySelectorAll("[data-pane]").forEach(p => p.classList.toggle("hide", p.dataset.pane !== v));
+    window.dispatchEvent(new Event("resize"));
+    if(onShow) onShow(v);
+  });
+}
+
+/* ---------- line chart with legend, crosshair + tooltip ---------- */
+function niceStep(range, target){
+  const raw = range / Math.max(1, target), mag = Math.pow(10, Math.floor(Math.log10(raw))), n = raw / mag;
+  return (n < 1.5 ? 1 : n < 3 ? 2 : n < 7 ? 5 : 10) * mag;
+}
+class Chart {
+  constructor(host, o){
+    this.o = Object.assign({ xLabel:"Time", yLabel:"", xSpan:10, yMin:0, yMax:null, yFloor:0, height: w => clamp(w*0.55, 190, 300), endLabels:false, xUnit:"", decimals:null }, o);
+    this.host = host; host.classList.add("chart");
+    if(this.o.title){ const t = document.createElement("p"); t.className = "chart-title"; t.textContent = this.o.title; host.appendChild(t); }
+    this.cv = document.createElement("canvas"); host.appendChild(this.cv);
+    this.cv.setAttribute("role","img");
+    this.leg = document.createElement("div"); this.leg.className = "legend"; host.appendChild(this.leg);
+    this.tip = document.createElement("div"); this.tip.className = "tip hide"; host.appendChild(this.tip);
+    this.hover = null;
+    this.reset(this.o.series || []);
+    this.st = stage(this.cv, { height: this.o.height, draw: (ctx,w,h) => this._draw(ctx,w,h) });
+    const mv = e => { const r = this.cv.getBoundingClientRect(); this.hover = { x: e.clientX - r.left, y: e.clientY - r.top }; this.draw(); };
+    this.cv.addEventListener("pointermove", mv); this.cv.addEventListener("pointerdown", mv);
+    this.cv.addEventListener("pointerleave", () => { this.hover = null; this.tip.classList.add("hide"); this.draw(); });
+  }
+  reset(series){
+    if(series) this.series = series.map((s,i) => Object.assign({ color: SERIES[i % SERIES.length] }, s));
+    this.xs = []; this.ys = this.series.map(() => []); this.marks = []; this.ghost = null;
+    this.leg.textContent = "";
+    this.series.forEach(s => { const sp = document.createElement("span"), i = document.createElement("i"); i.style.borderTopColor = s.color; if(s.dash) i.className = "dash"; sp.appendChild(i); sp.appendChild(document.createTextNode(s.name)); this.leg.appendChild(sp); });
+    this.cv.setAttribute("aria-label", (this.o.title || "Chart") + ": " + this.series.map(s => s.name).join(", ") + " against " + this.o.xLabel.toLowerCase());
+    if(this.st) this.draw();
+  }
+  push(x, ys){
+    this.xs.push(x); for(let i=0;i<this.ys.length;i++) this.ys[i].push(ys[i]);
+    if(this.xs.length > 2400){                                        // thin out old points, keep vertical jumps
+      const keep = (v, i, a) => i % 2 === 0 || i > a.length - 300 || (i > 0 && this.xs[i] === this.xs[i-1]) || (i < this.xs.length-1 && this.xs[i] === this.xs[i+1]);
+      const idx = this.xs.map((v,i,a) => keep(v,i,a));
+      this.xs = this.xs.filter((v,i) => idx[i]); this.ys = this.ys.map(a => a.filter((v,i) => idx[i]));
+    }
+  }
+  mark(x, text){ this.marks.push({ x, text }); }
+  keepGhost(){ this.ghost = { xs:this.xs.slice(), ys:this.ys.map(a => a.slice()) }; }
+  draw(){ if(this.st) this.st.redraw(); }
+  _range(){
+    const o = this.o;
+    const xMax = o.xMax != null ? o.xMax : Math.max(o.xSpan, this.xs.length ? this.xs[this.xs.length-1] : 0);
+    let yMax = o.yMax;
+    if(yMax == null){
+      let m = o.yFloor || 0;
+      for(const a of this.ys) for(const v of a) if(v > m) m = v;
+      if(this.ghost) for(const a of this.ghost.ys) for(const v of a) if(v > m) m = v;
+      m = m > 0 ? m * 1.12 : 1;
+      const st = niceStep(m, 4); yMax = Math.ceil(m / st) * st;
+    }
+    return { xMin: o.xMin || 0, xMax, yMin: o.yMin || 0, yMax };
+  }
+  _draw(ctx, w, h){
+    const o = this.o, R = this._range();
+    ctx.clearRect(0,0,w,h); ctx.fillStyle = "#070a13"; ctx.fillRect(0,0,w,h);
+    const yStep = niceStep(R.yMax - R.yMin, h < 220 ? 3 : 4);
+    const dec = o.decimals != null ? o.decimals : Math.max(0, Math.min(6, -Math.floor(Math.log10(yStep) + 1e-9)));
+    const yFmt = o.yFmt || (v => Math.abs(v) >= 10000 || (v !== 0 && Math.abs(v) < 0.0001) ? sci(v,2) : v.toFixed(dec));
+    ctx.font = "11px " + MONO;
+    let lw = 0; for(let v = R.yMin; v <= R.yMax + yStep*0.01; v += yStep) lw = Math.max(lw, ctx.measureText(yFmt(v)).width);
+    const L = Math.ceil(lw) + 26, Rm = 14, T = this.marks.length ? 30 : 12, B = 34;
+    const pw = w - L - Rm, ph = h - T - B;
+    const X = x => L + (x - R.xMin) / (R.xMax - R.xMin) * pw, Y = y => T + ph - (y - R.yMin) / (R.yMax - R.yMin) * ph;
+    this._geom = { L, T, pw, ph, R };
+    // grid + y ticks
+    ctx.lineWidth = 1; ctx.textBaseline = "middle"; ctx.textAlign = "right";
+    for(let v = R.yMin; v <= R.yMax + yStep*0.01; v += yStep){
+      const y = Math.round(Y(v)) + 0.5;
+      ctx.strokeStyle = "rgba(146,160,189,0.13)"; ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(L+pw, y); ctx.stroke();
+      ctx.fillStyle = MUTED; ctx.fillText(yFmt(v), L - 7, y);
+    }
+    // x ticks
+    const xStep = niceStep(R.xMax - R.xMin, pw < 300 ? 4 : 6);
+    ctx.textAlign = "center"; ctx.textBaseline = "top";
+    if(!o.hideXTicks) for(let v = Math.ceil(R.xMin/xStep)*xStep; v <= R.xMax + xStep*0.01; v += xStep){
+      const x = X(v); ctx.fillStyle = MUTED; ctx.fillText(String(Number(v.toPrecision(6))), x, T + ph + 6);
+    }
+    ctx.strokeStyle = "rgba(146,160,189,0.45)"; ctx.beginPath(); ctx.moveTo(L+0.5, T); ctx.lineTo(L+0.5, T+ph+0.5); ctx.lineTo(L+pw, T+ph+0.5); ctx.stroke();
+    ctx.font = "11px " + FONT; ctx.fillStyle = MUTED; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+    ctx.fillText(o.xLabel, L + pw/2, h - 3);
+    if(o.yLabel){ ctx.save(); ctx.translate(11, T + ph/2); ctx.rotate(-Math.PI/2); ctx.textBaseline = "middle"; ctx.fillText(o.yLabel, 0, 0); ctx.restore(); }
+    // event markers
+    ctx.font = "600 11px " + MONO;
+    let lastRight = -1e9, rowAlt = 0;
+    this.marks.forEach(m => {
+      const x = Math.round(X(m.x)) + 0.5; if(x < L || x > L + pw + 1) return;
+      ctx.strokeStyle = "rgba(251,191,36,0.55)"; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(x, T); ctx.lineTo(x, T+ph); ctx.stroke(); ctx.setLineDash([]);
+      if(m.text){
+        const tw = ctx.measureText(m.text).width, cx = clamp(x, L + tw/2, L + pw - tw/2); rowAlt = (cx - tw/2 < lastRight + 6) ? 1 - rowAlt : 0; lastRight = cx + tw/2;
+        ctx.fillStyle = "#fbbf24"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+        ctx.fillText(m.text, cx, 3 + rowAlt*13);
+      }
+    });
+    // series
+    ctx.save(); ctx.beginPath(); ctx.rect(L, T-2, pw+2, ph+4); ctx.clip();
+    const plot = (xs, ys, alpha) => {
+      this.series.forEach((s,i) => {
+        const a = ys[i]; if(!a || !a.length) return;
+        ctx.globalAlpha = alpha; ctx.strokeStyle = s.color; ctx.lineWidth = 2; ctx.lineJoin = "round"; ctx.lineCap = "round";
+        ctx.setLineDash(s.dash ? [6,5] : []); ctx.beginPath();
+        for(let k=0;k<a.length;k++){ const px = X(xs[k]), py = Y(a[k]); if(k) ctx.lineTo(px,py); else ctx.moveTo(px,py); }
+        ctx.stroke(); ctx.setLineDash([]);
+      });
+      ctx.globalAlpha = 1;
+    };
+    if(this.ghost) plot(this.ghost.xs, this.ghost.ys, 0.28);
+    plot(this.xs, this.ys, 1);
+    ctx.restore();
+    // selective end labels (anchored to the last data point)
+    if(o.endLabels && this.xs.length){
+      ctx.font = "600 11px " + FONT; ctx.textBaseline = "bottom";
+      const n = this.xs.length - 1, used = [], lx = X(this.xs[n]);
+      this.series.forEach((s,i) => {
+        const txt = s.short || s.name, tw = ctx.measureText(txt).width;
+        let y = Y(this.ys[i][n]) - 5; used.forEach(u => { if(Math.abs(u - y) < 13) y = u - 13; }); used.push(y);
+        ctx.textAlign = "left"; ctx.fillStyle = INK; ctx.fillText(txt, clamp(lx - tw, L + 4, L + pw - tw - 2), Math.max(T + 12, y));
+      });
+    }
+    // crosshair + tooltip
+    if(this.hover && this.xs.length){
+      const hx = clamp(this.hover.x, L, L + pw), xv = R.xMin + (hx - L)/pw * (R.xMax - R.xMin);
+      let k = 0, best = 1e99; for(let i=0;i<this.xs.length;i++){ const d = Math.abs(this.xs[i]-xv); if(d <= best){ best = d; k = i; } }
+      const px = Math.round(X(this.xs[k])) + 0.5;
+      ctx.strokeStyle = "rgba(232,237,247,0.4)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(px, T); ctx.lineTo(px, T+ph); ctx.stroke();
+      this.series.forEach((s,i) => { const py = Y(this.ys[i][k]); ctx.beginPath(); ctx.arc(px, py, 4.5, 0, 7); ctx.fillStyle = "#070a13"; ctx.fill(); ctx.beginPath(); ctx.arc(px, py, 3, 0, 7); ctx.fillStyle = s.color; ctx.fill(); });
+      this.tip.textContent = "";
+      const tx = document.createElement("div"); tx.className = "tx"; tx.textContent = o.xLabel.replace(/\s*\(.*\)/,"") + " " + Number(this.xs[k].toPrecision(3)) + (o.xUnit ? " " + o.xUnit : ""); this.tip.appendChild(tx);
+      this.series.forEach((s,i) => { const r = document.createElement("div"); r.className = "tr"; const nm = document.createElement("span"), ic = document.createElement("i"); ic.style.borderTopColor = s.color; nm.appendChild(ic); nm.appendChild(document.createTextNode(s.name)); const b = document.createElement("b"); b.textContent = (o.tipFmt || (v => num(v,3)))(this.ys[i][k]); r.appendChild(nm); r.appendChild(b); this.tip.appendChild(r); });
+      this.tip.classList.remove("hide");
+      const tw = this.tip.offsetWidth, top = this.cv.offsetTop + T + 4;
+      this.tip.style.left = clamp(px + 12 + tw > w ? px - tw - 12 : px + 12, 0, Math.max(0, w - tw)) + "px"; this.tip.style.top = top + "px";
+    }
+  }
+}
+
+/* ---------- multiple-choice quiz ---------- */
+function quiz(host, items, o){
+  o = o || {};
+  let order, i, score, answered;
+  host.classList.add("quiz");
+  function start(){ order = o.keepOrder ? items.slice() : shuffle(items); if(o.count) order = order.slice(0, o.count); i = 0; score = 0; show(); }
+  function show(){
+    host.textContent = "";
+    const head = document.createElement("div"); head.className = "quiz-head";
+    const cap = document.createElement("span"); cap.className = "cap"; cap.textContent = o.title || "Check your understanding";
+    const prog = document.createElement("span"); prog.className = "pill";
+    head.appendChild(cap); head.appendChild(prog); host.appendChild(head);
+    if(i >= order.length){
+      prog.textContent = score + " / " + order.length + " correct";
+      const p = document.createElement("p"); p.className = "quiz-q";
+      p.textContent = score === order.length ? "All correct. Nice work." : "You got " + score + " of " + order.length + ". Have another go to lock it in.";
+      host.appendChild(p);
+      if(o.onDone){ o.onDone(score, order.length, host); return; }
+      const b = document.createElement("button"); b.className = "ghost"; b.textContent = "Try again"; b.addEventListener("click", start); host.appendChild(b);
+      return;
+    }
+    const it = order[i]; answered = false;
+    prog.textContent = "Question " + (i+1) + " of " + order.length + " · " + score + " correct";
+    const q = document.createElement("p"); q.className = "quiz-q"; q.innerHTML = it.q; host.appendChild(q);
+    const opts = document.createElement("div"); opts.className = "opts"; host.appendChild(opts);
+    const fb = document.createElement("div"); host.appendChild(fb);
+    const idx = it.fixed ? it.opts.map((_,k) => k) : shuffle(it.opts.map((_,k) => k));
+    idx.forEach(k => {
+      const b = document.createElement("button"); b.className = "opt"; b.innerHTML = it.opts[k];
+      b.addEventListener("click", () => {
+        if(answered) return; answered = true;
+        const ok = k === it.a; if(ok) score++;
+        if(o.onAnswer) o.onAnswer(ok, it);
+        Array.from(opts.children).forEach((c, n) => { c.disabled = true; if(idx[n] === it.a) c.classList.add("right"); });
+        if(!ok) b.classList.add("wrong");
+        fb.className = "callout " + (ok ? "good" : "bad");
+        fb.innerHTML = "<span class='k'>" + (ok ? "Correct" : "Not quite") + "</span>" + (it.why || "");
+        const nx = document.createElement("button"); nx.className = "fire small"; nx.style.marginTop = "12px"; nx.textContent = i === order.length-1 ? "See score" : "Next question";
+        nx.addEventListener("click", () => { i++; show(); }); host.appendChild(nx); nx.focus({ preventScroll:true });
+        prog.textContent = "Question " + (i+1) + " of " + order.length + " · " + score + " correct";
+      });
+      opts.appendChild(b);
+    });
+  }
+  start();
+}
+
+
+/* ---------- calculation practice: gen() -> { q, fields:[{label, unit, answer, tol, kind, options}], solution, hint(values) } ---------- */
+function practice(host, gen, o){
+  o = o || {}; let right = 0, total = 0, cur, counted;
+  host.classList.add("quiz");
+  function next(){ cur = gen(); counted = false; render(); }
+  function render(){
+    host.textContent = "";
+    const head = document.createElement("div"); head.className = "quiz-head";
+    const cap = document.createElement("span"); cap.className = "cap"; cap.textContent = o.title || "Practice";
+    const pill = document.createElement("span"); pill.className = "pill"; pill.textContent = right + " / " + total + " correct first try";
+    head.appendChild(cap); head.appendChild(pill); host.appendChild(head);
+    const q = document.createElement("div"); q.className = "quiz-q"; q.innerHTML = cur.q; host.appendChild(q);
+    const inputs = [];
+    cur.fields.forEach((f, i) => {
+      const row = document.createElement("div"); row.className = "ans";
+      const id = "pf" + Math.random().toString(36).slice(2), lab = document.createElement("label"); lab.htmlFor = id; lab.innerHTML = f.label; row.appendChild(lab);
+      let el;
+      if(f.kind === "choice"){
+        const wrap = document.createElement("div"); wrap.className = "select-wrap"; wrap.style.flex = "1 1 160px"; wrap.style.maxWidth = "280px";
+        el = document.createElement("select"); const o0 = document.createElement("option"); o0.value = ""; o0.textContent = "Choose…"; el.appendChild(o0);
+        f.options.forEach((t, k) => { const op = document.createElement("option"); op.value = String(k); op.textContent = t; el.appendChild(op); });
+        wrap.appendChild(el); row.appendChild(wrap);
+      } else {
+        el = document.createElement("input"); el.className = "num"; el.type = "text"; el.inputMode = "text"; el.autocomplete = "off"; el.placeholder = f.placeholder || "e.g. 1.8e-5"; row.appendChild(el);
+        if(f.unit){ const u = document.createElement("span"); u.className = "muted mono"; u.style.fontSize = ".82rem"; u.innerHTML = f.unit; row.appendChild(u); }
+        el.addEventListener("keydown", e => { if(e.key === "Enter") check(); });
+      }
+      el.id = id; inputs.push(el); host.appendChild(row);
+    });
+    const btns = document.createElement("div"); btns.className = "btns"; btns.style.marginTop = "14px";
+    const bC = document.createElement("button"); bC.className = "fire"; bC.textContent = "Check";
+    const bS = document.createElement("button"); bS.className = "ghost"; bS.textContent = "Show working";
+    const bN = document.createElement("button"); bN.className = "ghost"; bN.textContent = "New question";
+    btns.appendChild(bC); btns.appendChild(bS); btns.appendChild(bN); host.appendChild(btns);
+    const fb = document.createElement("div"); host.appendChild(fb);
+    function check(){
+      const vals = inputs.map((el, i) => cur.fields[i].kind === "choice" ? (el.value === "" ? null : +el.value) : parseNum(el.value));
+      if(vals.some((v, i) => cur.fields[i].kind === "choice" ? v === null : isNaN(v))){ fb.className = "callout warn"; fb.innerHTML = "<span class='k'>Fill in every answer</span>Use numbers such as 0.025 or 2.5e-2. Scientific notation like 1.8e-5 or 1.8×10^-5 works."; return; }
+      let all = true;
+      vals.forEach((v, i) => { const f = cur.fields[i], ok = f.kind === "choice" ? v === f.answer : closeTo(v, f.answer, f.tol === undefined ? 0.02 : f.tol); inputs[i].classList.toggle("right", ok); inputs[i].classList.toggle("wrong", !ok); if(!ok) all = false; });
+      if(!counted){ counted = true; total++; if(all) right++; pill.textContent = right + " / " + total + " correct first try"; if(o.onScore) o.onScore(right, total); }
+      if(all){ fb.className = "callout good"; fb.innerHTML = "<span class='k'>Correct</span>" + cur.solution; }
+      else { const h = cur.hint ? cur.hint(vals) : ""; fb.className = "callout bad"; fb.innerHTML = "<span class='k'>Not quite</span>" + (h || "Check the boxes marked in red, then try again or show the working."); }
+    }
+    bC.addEventListener("click", check);
+    bS.addEventListener("click", () => { if(!counted){ counted = true; total++; pill.textContent = right + " / " + total + " correct first try"; } fb.className = "callout"; fb.innerHTML = "<span class='k'>Working</span>" + cur.solution; });
+    bN.addEventListener("click", next);
+  }
+  next();
+  return { next };
+}
+
+/* ---------- generic equilibrium system (concentrations relax towards Q = K) ---------- */
+class EqSystem {
+  // species: [{name, nu (negative = reactant), c, inK:true|false, color}]
+  constructor(o){
+    this.sp = o.species.map(s => Object.assign({ inK:true }, s));
+    this.K = o.K; this.K0 = o.K; this.dH = o.dH || 0; this.tau = o.tau || 1.6;
+    this.c = this.sp.map(s => s.c);
+  }
+  Q(c){
+    c = c || this.c; let lq = 0;
+    this.sp.forEach((s,i) => { if(s.inK) lq += s.nu * Math.log(Math.max(c[i], 1e-300)); });
+    return Math.exp(lq);
+  }
+  eqExtent(){                                          // extent ξ that brings Q to K (bisection; ln Q is monotonic in ξ)
+    let lo = -Infinity, hi = Infinity;
+    this.sp.forEach((s,i) => { if(!s.inK) return; if(s.nu > 0) lo = Math.max(lo, -this.c[i]/s.nu); else hi = Math.min(hi, this.c[i]/(-s.nu)); });
+    if(!isFinite(lo)) lo = -1e6; if(!isFinite(hi)) hi = 1e6;
+    const lnK = Math.log(this.K);
+    const f = xi => { let lq = 0; this.sp.forEach((s,i) => { if(s.inK) lq += s.nu * Math.log(Math.max(this.c[i] + s.nu*xi, 1e-300)); }); return lq - lnK; };
+    let a = lo + (hi-lo)*1e-12, b = hi - (hi-lo)*1e-12;
+    for(let k=0;k<200;k++){ const m = (a+b)/2; if(f(m) > 0) b = m; else a = m; }
+    return (a+b)/2;
+  }
+  step(dt){ const xi = this.eqExtent() * (1 - Math.exp(-dt/this.tau)); this.sp.forEach((s,i) => { if(s.inK) this.c[i] = Math.max(0, this.c[i] + s.nu*xi); }); return xi; }
+  settle(){ const xi = this.eqExtent(); this.sp.forEach((s,i) => { if(s.inK) this.c[i] = Math.max(0, this.c[i] + s.nu*xi); }); return xi; }
+  shiftDir(){ const q = this.Q(), r = Math.log(q/this.K); return Math.abs(r) < 1e-6 ? 0 : (r < 0 ? 1 : -1); }   // +1 = towards products
+  dn(){ return this.sp.reduce((a,s) => a + (s.inK ? s.nu : 0), 0); }
+}
+
+/* ---------- misc ---------- */
+function initWorksheet(){
+  const a = $("worksheet"); if(!a) return;
+  if(window.WORKSHEET_URL){ a.href = window.WORKSHEET_URL; a.hidden = false; }
+}
+document.addEventListener("DOMContentLoaded", initWorksheet);
+</script>
+<script>
+(function(){
+"use strict";
+const K_TRUE = 138, EL = 4700, RAMP = [[0,"#f6f1d6"],[0.2,"#f3c56e"],[0.45,"#e8772e"],[0.75,"#c22a14"],[1,"#8a0e08"]];
+function eqConc(fe, s){ const a = K_TRUE, b = -(K_TRUE*(fe + s) + 1), c = K_TRUE*fe*s; return (-b - Math.sqrt(b*b - 4*a*c))/(2*a); }
+const SAMPLES = [{ id:"B", kind:"blank", c:0 }];
+[1,2,3,4,5].forEach(v => { const s0 = 0.002*v/50; SAMPLES.push({ id:"S" + v, kind:"std", v, nom:s0, c:eqConc(0.1, s0) }); });
+[1,2,3,4,5].forEach(v => { const s0 = 0.002*v/10; SAMPLES.push({ id:"M" + v, kind:"mix", v, fe0:0.001, s0, c:eqConc(0.001, s0) }); });
+let sel = "B", zeroed = false, reads = {}, pulse = 0, shownA = null;
+const byId = id => SAMPLES.find(s => s.id === id), mean = a => a.reduce((x, y) => x + y, 0)/a.length;
+const colour = s => s.kind === "blank" ? "#f6f1d6" : ramp(RAMP, s.c/2.6e-4);
+const e4 = v => (v*1e4).toFixed(2);
+
+function fit(){ let sxy = 0, sxx = 0, n = 0; SAMPLES.forEach(s => { if(s.kind === "std" && reads[s.id]){ const a = mean(reads[s.id]); sxy += s.nom*a; sxx += s.nom*s.nom; n++; } }); return n >= 2 ? sxy/sxx : null; }
+function renderRack(){
+  const host = $("rack"); host.textContent = "";
+  SAMPLES.forEach(s => { const b = document.createElement("button"); b.className = (s.id === sel ? "on " : "") + (reads[s.id] ? "read" : ""); b.setAttribute("aria-label", (s.kind === "blank" ? "Blank" : s.kind === "std" ? "Standard " + s.v : "Mixture " + s.v) + (reads[s.id] ? ", measured" : ""));
+    const i = document.createElement("i"); i.style.background = colour(s); const sp = document.createElement("span"); sp.textContent = s.id === "B" ? "Blank" : s.id; b.appendChild(i); b.appendChild(sp);
+    b.addEventListener("click", () => { sel = s.id; shownA = null; renderRack(); say(); }); host.appendChild(b); });
+}
+function say(msg, col){
+  const v = $("verdict"), s = byId(sel);
+  v.textContent = msg || (!zeroed ? (sel === "B" ? "Blank loaded. Press Zero with blank." : "Zero the colorimeter with the blank first") : s.kind === "blank" ? "Blank loaded" : (s.kind === "std" ? "Standard " : "Mixture ") + s.v + " loaded. Press Measure.");
+  v.style.color = col || "var(--ink)";
+}
+function renderTables(){
+  const st = $("stdTbl"); st.innerHTML = "<tr><th class='lh'>Standard</th><th>KSCN (mL)</th><th>[FeSCN²⁺] assumed (× 10⁻⁴ mol L⁻¹)</th><th>Absorbance readings</th><th>Mean A</th></tr>";
+  SAMPLES.filter(s => s.kind === "std").forEach(s => { const r = reads[s.id], tr = document.createElement("tr");
+    tr.innerHTML = "<td class='lh'>" + s.id + "</td><td class='m'>" + s.v.toFixed(2) + "</td><td class='m'>" + e4(s.nom) + "</td><td class='m'>" + (r ? r.map(a => a.toFixed(3)).join(", ") : "—") + "</td><td class='m'>" + (r ? mean(r).toFixed(3) : "—") + "</td>"; st.appendChild(tr); });
+  SAMPLES.filter(s => s.kind === "mix").forEach(s => { const r = reads[s.id]; $("a" + s.id).textContent = r ? mean(r).toFixed(3) + (r.length > 1 ? " (n=" + r.length + ")" : "") : "—"; });
+  const m = fit(); $("fitNote").innerHTML = m ? "Line of best fit through the origin: <b class='mono'>A = " + Math.round(m).toLocaleString("en-AU") + " × [FeSCN²⁺]</b>, with concentration in mol L⁻¹." : "Measure at least two standards to draw the line of best fit.";
+  cal.redraw();
+}
+(function buildMix(){
+  const t = $("mixTbl"); t.innerHTML = "<tr><th class='lh'>Mixture</th><th>KSCN (mL)</th><th>[Fe³⁺]₀ (mol L⁻¹)</th><th>[SCN⁻]₀ (mol L⁻¹)</th><th>Mean A</th><th>[FeSCN²⁺]<sub>eq</sub> (mol L⁻¹)</th><th>K</th></tr>";
+  SAMPLES.filter(s => s.kind === "mix").forEach(s => { const tr = document.createElement("tr");
+    tr.innerHTML = "<td class='lh'>" + s.id + "</td><td class='m'>" + s.v.toFixed(2) + "</td><td class='m'>" + sci(s.fe0, 3) + "</td><td class='m'>" + sci(s.s0, 3) + "</td><td class='m' id='a" + s.id + "'>—</td><td><input class='num' id='c" + s.id + "' type='text' autocomplete='off' placeholder='e.g. 6.1e-5' aria-label='Equilibrium concentration of FeSCN for " + s.id + "'></td><td><input class='num' id='k" + s.id + "' type='text' autocomplete='off' placeholder='K' aria-label='K for " + s.id + "'></td>"; t.appendChild(tr); });
+})();
+$("zeroBtn").addEventListener("click", () => { if(sel !== "B"){ say("Load the blank before zeroing", "var(--amber)"); return; } zeroed = true; shownA = 0; pulse = 1; say("Zeroed: the blank now reads A = 0.000", "var(--green)"); });
+$("measBtn").addEventListener("click", () => {
+  const s = byId(sel);
+  if(!zeroed){ say("Zero the colorimeter with the blank first", "var(--amber)"); return; }
+  const noise = (Math.random() + Math.random() + Math.random() - 1.5)*0.008, a = Math.max(0, Math.round((EL*s.c + noise)*1000)/1000);
+  shownA = a; pulse = 1;
+  if(s.kind !== "blank"){ (reads[s.id] = reads[s.id] || []).push(a); if(reads[s.id].length > 4) reads[s.id].shift(); }
+  renderRack(); renderTables(); say((s.kind === "blank" ? "Blank" : s.id) + ": A = " + a.toFixed(3), "var(--cyan)");
+});
+function studentK(s, m){ const c = mean(reads[s.id])/m; return { c, k:c/((s.fe0 - c)*(s.s0 - c)) }; }
+$("checkBtn").addEventListener("click", () => {
+  const m = fit(), fb = $("fb"), mixes = SAMPLES.filter(s => s.kind === "mix");
+  if(!m || mixes.some(s => !reads[s.id])){ fb.className = "callout warn"; fb.innerHTML = "<span class='k'>More data needed</span>Measure at least two standards and all five mixtures first."; return; }
+  let nOk = 0, nTried = 0; const ks = [];
+  mixes.forEach(s => { const exp = studentK(s, m), ci = $("c" + s.id), ki = $("k" + s.id), cv = parseNum(ci.value), kv = parseNum(ki.value);
+    [[ci, cv, exp.c, 0.03], [ki, kv, exp.k, 0.06]].forEach(a => { if(a[0].value.trim() === ""){ a[0].classList.remove("right","wrong"); return; } nTried++; const ok = closeTo(a[1], a[2], a[3]); a[0].classList.toggle("right", ok); a[0].classList.toggle("wrong", !ok); if(ok) nOk++; });
+    ks.push(exp.k); });
+  const av = $("avgK"), avv = parseNum(av.value), avgExp = mean(ks); let avOk = false;
+  if(av.value.trim() !== ""){ nTried++; avOk = closeTo(avv, avgExp, 0.05); av.classList.toggle("right", avOk); av.classList.toggle("wrong", !avOk); if(avOk) nOk++; }
+  if(!nTried){ fb.className = "callout warn"; fb.innerHTML = "<span class='k'>Nothing to check yet</span>Enter [FeSCN²⁺] and K for at least one mixture."; return; }
+  const all = nOk === 11;
+  fb.className = "callout " + (all ? "good" : nOk === nTried ? "" : "bad");
+  fb.innerHTML = all ? "<span class='k'>All calculations correct</span><p>Your average K is " + num(avgExp, 3) + ". The value built into this simulation is <b>" + K_TRUE + "</b>.</p><p>Your result is probably a little high. Open <b>About this model and its limits</b> to see why, then try the questions below.</p>"
+    : "<span class='k'>" + nOk + " of " + nTried + " entries correct</span>" + (nOk === nTried ? "Keep going. Fill in the remaining boxes." : "Boxes marked in red do not match your own data. [FeSCN²⁺] = A ÷ slope. Then K = [FeSCN²⁺] ÷ ([Fe³⁺]<sub>eq</sub> × [SCN⁻]<sub>eq</sub>), where each equilibrium concentration is the initial value minus [FeSCN²⁺].");
+});
+$("exampleBtn").addEventListener("click", () => {
+  const m = fit(), s = byId("M1"), fb = $("fb");
+  if(!m || !reads.M1){ fb.className = "callout warn"; fb.innerHTML = "<span class='k'>More data needed</span>Measure at least two standards and mixture M1 first."; return; }
+  const e = studentK(s, m), a = mean(reads.M1);
+  fb.className = "callout"; fb.innerHTML = "<span class='k'>Working for M1, using your data</span><p class='mono'>[FeSCN²⁺] = A ÷ slope = " + a.toFixed(3) + " ÷ " + Math.round(m) + " = " + sci(e.c, 3) + " mol L⁻¹</p>" +
+    "<div class='scroll-x'><table class='tbl' style='margin:8px 0'><tr><th></th><th>Fe³⁺</th><th>SCN⁻</th><th>FeSCN²⁺</th></tr><tr><td class='lh'>I</td><td class='m'>" + sci(s.fe0, 3) + "</td><td class='m'>" + sci(s.s0, 3) + "</td><td class='m'>0</td></tr><tr><td class='lh'>C</td><td class='m'>−" + sci(e.c, 3) + "</td><td class='m'>−" + sci(e.c, 3) + "</td><td class='m'>+" + sci(e.c, 3) + "</td></tr><tr><td class='lh'>E</td><td class='m'>" + sci(s.fe0 - e.c, 3) + "</td><td class='m'>" + sci(s.s0 - e.c, 3) + "</td><td class='m'>" + sci(e.c, 3) + "</td></tr></table></div>" +
+    "<p class='mono'>K = " + sci(e.c, 3) + " ÷ (" + sci(s.fe0 - e.c, 3) + " × " + sci(s.s0 - e.c, 3) + ") = " + num(e.k, 3) + "</p>";
+});
+$("resetBtn").addEventListener("click", () => { reads = {}; zeroed = false; sel = "B"; shownA = null; document.querySelectorAll("#mixTbl input, #avgK").forEach(i => { i.value = ""; i.classList.remove("right","wrong"); }); $("fb").className = ""; $("fb").textContent = ""; renderRack(); renderTables(); say(); });
+
+stage($("meter"), { animate:true, height: w => clamp(w*0.5, 190, 250), draw(ctx, w, h, dt){
+  chamberBg(ctx, w, h); if(pulse > 0) pulse = Math.max(0, pulse - dt*1.4);
+  const s = byId(sel), y = h*0.5, x0 = w*0.1, xc = w*0.48, x1 = w*0.82, cw = Math.min(46, w*0.12), chh = Math.min(110, h*0.56);
+  const A = shownA === null ? EL*s.c : shownA, tr = Math.pow(10, -A), glow = 0.55 + 0.45*pulse;
+  ctx.fillStyle = "#1b2236"; ctx.strokeStyle = "#5d6a8a"; ctx.lineWidth = 2; rr(ctx, x0 - 26, y - 22, 40, 44, 6); ctx.fill(); ctx.stroke();         // lamp
+  ctx.fillStyle = "rgba(96,140,255," + glow + ")"; ctx.beginPath(); ctx.arc(x0 + 2, y, 8, 0, 7); ctx.fill();
+  ctx.fillStyle = "rgba(96,140,255," + (0.75*glow) + ")"; ctx.fillRect(x0 + 14, y - 5, xc - cw/2 - x0 - 14, 10);
+  ctx.fillStyle = "rgba(96,140,255," + (0.75*glow*Math.max(0.06, tr)) + ")"; ctx.fillRect(xc + cw/2, y - 5, x1 - xc - cw/2, 10);
+  ctx.fillStyle = colour(s); rr(ctx, xc - cw/2 + 3, y - chh/2 + 14, cw - 6, chh - 17, 3); ctx.fill();                                               // cuvette
+  ctx.fillStyle = "rgba(96,140,255," + (0.3*glow) + ")"; ctx.fillRect(xc - cw/2 + 3, y - 5, cw - 6, 10);
+  ctx.strokeStyle = "rgba(232,237,247,.85)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(xc - cw/2, y - chh/2); ctx.lineTo(xc - cw/2, y + chh/2); ctx.lineTo(xc + cw/2, y + chh/2); ctx.lineTo(xc + cw/2, y - chh/2); ctx.stroke();
+  ctx.fillStyle = "#1b2236"; ctx.strokeStyle = "#5d6a8a"; rr(ctx, x1, y - 22, 36, 44, 6); ctx.fill(); ctx.stroke();                                    // detector
+  label(ctx, "447 nm LED", x0 - 6, y + 36, { align:"center", size:10 }); label(ctx, s.id === "B" ? "blank" : s.id, xc, y + chh/2 + 13, { align:"center", size:11, color:INK, bold:true }); label(ctx, "detector", x1 + 18, y + 36, { align:"center", size:10 });
+  ctx.fillStyle = "#070a13"; ctx.strokeStyle = LINE; rr(ctx, w - 142, 10, 132, 34, 7); ctx.fill(); ctx.stroke();
+  label(ctx, shownA === null ? "A = -.---" : "A = " + shownA.toFixed(3), w - 76, 28, { align:"center", mono:true, size:15, color: shownA === null ? MUTED : "#34d399" });
+} });
+let hover = null;
+const cal = stage($("cal"), { height: w => clamp(w*0.62, 230, 320), draw(ctx, w, h){
+  ctx.fillStyle = "#070a13"; ctx.fillRect(0, 0, w, h);
+  const L = 46, R = 14, T = 14, B = 36, pw = w - L - R, ph = h - T - B, XM = 2.2e-4, YM = 1.1, X = c => L + c/XM*pw, Y = a => T + ph - a/YM*ph;
+  for(let a = 0; a <= 1.01; a += 0.2){ const y = Math.round(Y(a)) + .5; ctx.strokeStyle = "rgba(146,160,189,.13)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(L + pw, y); ctx.stroke(); label(ctx, a.toFixed(1), L - 7, y, { align:"right", size:11, mono:true }); }
+  for(let c = 0; c <= 2.01e-4; c += 0.5e-4) label(ctx, (c*1e4).toFixed(1), X(c), T + ph + 12, { align:"center", size:11, mono:true });
+  ctx.strokeStyle = "rgba(146,160,189,.45)"; ctx.beginPath(); ctx.moveTo(L + .5, T); ctx.lineTo(L + .5, T + ph + .5); ctx.lineTo(L + pw, T + ph + .5); ctx.stroke();
+  label(ctx, "[FeSCN²⁺] (× 10⁻⁴ mol L⁻¹)", L + pw/2, h - 7, { align:"center", size:11 });
+  ctx.save(); ctx.translate(11, T + ph/2); ctx.rotate(-Math.PI/2); label(ctx, "Absorbance", 0, 0, { align:"center", size:11 }); ctx.restore();
+  const m = fit();
+  if(m){ ctx.strokeStyle = SERIES[0]; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(X(0), Y(0)); const xe = Math.min(XM, YM/m); ctx.lineTo(X(xe), Y(m*xe)); ctx.stroke(); }
+  const s = byId(sel);
+  if(m && s.kind === "mix" && reads[s.id]){ const a = mean(reads[s.id]), c = a/m; ctx.strokeStyle = "#fbbf24"; ctx.setLineDash([5,4]); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(L, Y(a)); ctx.lineTo(X(c), Y(a)); ctx.lineTo(X(c), T + ph); ctx.stroke(); ctx.setLineDash([]); label(ctx, s.id, X(c) + 6, Y(a) - 9, { size:11, color:"#fbbf24", bold:true }); }
+  const pts = [];
+  SAMPLES.forEach(p => { if(p.kind === "std" && reads[p.id]){ const a = mean(reads[p.id]), px = X(p.nom), py = Y(a); pts.push({ px, py, p, a }); ctx.beginPath(); ctx.arc(px, py, 6.5, 0, 7); ctx.fillStyle = "#070a13"; ctx.fill(); ctx.beginPath(); ctx.arc(px, py, 4.5, 0, 7); ctx.fillStyle = SERIES[1]; ctx.fill(); } });
+  if(hover){ let best = null; pts.forEach(q => { const d = Math.hypot(q.px - hover.x, q.py - hover.y); if(d < 26 && (!best || d < best.d)) best = { q, d }; });
+    if(best){ const q = best.q, txt = q.p.id + " · " + e4(q.p.nom) + " × 10⁻⁴ mol/L · A = " + q.a.toFixed(3); ctx.font = "11px " + MONO; const tw = ctx.measureText(txt).width + 14, bx = clamp(q.px - tw/2, 4, w - tw - 4), by = q.py - 34; ctx.fillStyle = "rgba(10,13,24,.95)"; ctx.strokeStyle = LINE; rr(ctx, bx, by, tw, 22, 6); ctx.fill(); ctx.stroke(); label(ctx, txt, bx + 7, by + 11, { size:11, mono:true, color:INK }); } }
+} });
+$("cal").addEventListener("pointermove", e => { const r = $("cal").getBoundingClientRect(); hover = { x:e.clientX - r.left, y:e.clientY - r.top }; cal.redraw(); });
+$("cal").addEventListener("pointerdown", e => { const r = $("cal").getBoundingClientRect(); hover = { x:e.clientX - r.left, y:e.clientY - r.top }; cal.redraw(); });
+$("cal").addEventListener("pointerleave", () => { hover = null; cal.redraw(); });
+renderRack(); renderTables(); say();
+
+quiz($("quiz"), [
+  { q:"Why is Fe³⁺ used in very large excess when making the standards?", a:0, opts:["To push the equilibrium so far right that almost all SCN⁻ becomes FeSCN²⁺, making its concentration known.", "To make the solutions darker and easier to see.", "To stop the colorimeter from overheating.", "Because Fe³⁺ absorbs blue light strongly."],
+    why:"A large excess of one reactant drives the equilibrium towards the product. The concentration of FeSCN²⁺ is then taken to equal the initial SCN⁻ concentration." },
+  { q:"FeSCN²⁺ is red. Why is blue light used in the colorimeter?", a:2, opts:["Blue light has the lowest energy.", "Red solutions absorb red light most strongly.", "A red solution absorbs most strongly in the blue-green region, its complementary colour.", "Blue light is not absorbed by water."],
+    why:"A solution looks red because it transmits red light and absorbs the complementary blue-green wavelengths. Measuring where absorption is strongest gives the greatest sensitivity." },
+  { q:"A student forgets to zero the colorimeter with a blank. What kind of error does this cause?", a:1, opts:["Random error, reduced by repeating the measurement.", "Systematic error, shifting every reading in the same direction.", "No error, because the calibration line corrects for it.", "Random error, reduced by using a larger cuvette."],
+    why:"Every reading is offset by the same amount, which is a systematic error. Repeating measurements does not remove it." },
+  { q:"How could the <em>reliability</em> of the value of K be improved?", a:3, opts:["Use a higher concentration of Fe³⁺ in the standards.", "Use red light instead of blue.", "Calibrate the balance.", "Repeat each absorbance measurement and average consistent results."],
+    why:"Reliability is about consistency. Repeating measurements and averaging reduces the effect of random error. Changing the method to remove a systematic error would improve accuracy and validity instead." },
+  { q:"In reality a few percent of the SCN⁻ in each standard does not react. How does this affect the calculated K?", a:0, opts:["K is too high, because [FeSCN²⁺] in the mixtures is overestimated.", "K is too low, because [FeSCN²⁺] in the mixtures is underestimated.", "K is unaffected.", "K becomes negative."],
+    why:"The standards contain slightly less FeSCN²⁺ than assumed, so the calibration slope is too small. Dividing absorbance by a slope that is too small overestimates [FeSCN²⁺] in the mixtures, which raises K." }
+]);
+})();
+</script>
+</body></html>

@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Collision Theory Simulation</title>
+<style>
+  :root{
+    --bg:#0a0d18; --panel:#141a2b; --panel-2:#1b2236; --line:#27304a;
+    --ink:#e8edf7; --muted:#92a0bd; --cyan:#34d3ee; --green:#34d399;
+    --red:#fb7185; --amber:#fbbf24;
+    --mono:ui-monospace,"SF Mono","Cascadia Code","JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{
+    font-family:var(--sans);
+    background:
+      radial-gradient(1100px 500px at 20% -10%, #161d33 0%, transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, #11203a 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink); margin:0; padding:24px 16px;
+    display:flex; justify-content:center; min-height:100vh;
+  }
+  .wrap{ width:100%; max-width:860px; }
+  .eyebrow{ font-family:var(--mono); font-size:.72rem; letter-spacing:.32em; text-transform:uppercase; color:var(--cyan); margin:0 0 6px; }
+  h1{ margin:0 0 6px; font-size:1.7rem; letter-spacing:-.02em; }
+  .lede{ color:var(--muted); font-size:.95rem; margin:0 0 20px; line-height:1.5; }
+  .panel{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; }
+  .pick{ display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; margin-bottom:14px; }
+  .field{ display:flex; flex-direction:column; gap:6px; flex:1 1 280px; }
+  label.cap{ font-family:var(--mono); font-size:.7rem; letter-spacing:.18em; text-transform:uppercase; color:var(--muted); }
+  .select-wrap{ position:relative; border:1px solid var(--line); border-radius:9px; background:var(--panel-2); overflow:hidden; }
+  select{
+    appearance:none; -webkit-appearance:none; background:var(--panel-2); color:var(--ink);
+    border:none; border-radius:9px; padding:11px 38px 11px 13px; display:block;
+    font-size:.95rem; font-family:var(--sans); cursor:pointer; width:100%; outline:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2392a0bd' d='M6 8 0 0h12z'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 14px center;
+  }
+  select option{ background:var(--panel-2); color:var(--ink); }
+  .blurb{ color:var(--muted); font-size:.86rem; line-height:1.5; margin:0 0 14px; min-height:2.4em; }
+  .chamber-shell{ position:relative; }
+  canvas{ display:block; width:100%; height:auto; border-radius:11px; border:1px solid var(--line); background:#070a13; }
+  .chip{
+    position:absolute; top:12px; left:12px; font-family:var(--mono); font-size:.66rem;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--amber);
+    background:rgba(10,13,24,.72); border:1px solid var(--line);
+    padding:5px 9px; border-radius:7px; backdrop-filter:blur(4px);
+  }
+  .status{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:14px 0 4px; min-height:30px; }
+  .verdict{ font-size:1.05rem; font-weight:700; letter-spacing:-.01em; }
+  .pill{
+    font-family:var(--mono); font-size:.72rem; letter-spacing:.06em; padding:5px 10px;
+    border-radius:999px; border:1px solid var(--line); color:var(--muted);
+    background:var(--panel-2); white-space:nowrap;
+  }
+  .pill.ok{ color:#062b1e; background:var(--green); border-color:transparent; font-weight:700; }
+  .pill.bad{ color:#3a0410; background:var(--red); border-color:transparent; font-weight:700; }
+  .pill.na{ opacity:.7; }
+  .controls{ display:flex; flex-direction:column; gap:16px; margin-top:16px; }
+  .row{ display:flex; align-items:center; gap:12px; }
+  .row .cap{ flex:0 0 140px; }
+  .val{ font-family:var(--mono); font-size:.85rem; color:var(--ink); flex:0 0 56px; text-align:right; }
+
+  /* ---- angle slider: div-based (like the energy meter) so the track always fills its full width ---- */
+  .aslider{ position:relative; flex:1 1 auto; height:18px; cursor:grab; touch-action:none; }
+  .aslider:active{ cursor:grabbing; }
+  .aslider:focus-visible{ outline:2px solid var(--cyan); outline-offset:4px; border-radius:6px; }
+  .aslider-track{ position:absolute; left:0; right:0; top:50%; height:6px; transform:translateY(-50%); border-radius:6px; background:var(--line); }
+  .aslider-thumb{ position:absolute; top:50%; left:0; transform:translate(-50%,-50%);
+    width:18px; height:18px; border-radius:50%; background:var(--ink);
+    border:3px solid var(--cyan); box-shadow:0 0 10px rgba(52,211,238,.5);
+    z-index:2; pointer-events:none; }
+  .aslider.disabled{ opacity:.45; cursor:not-allowed; }
+
+  /* ---- collision-energy control: the bar itself is the input (drag / click / arrow keys) ---- */
+  .energy-control{ display:flex; flex-direction:column; gap:6px; }
+  .energy-row{ align-items:center; }
+  .meter-wrap{ position:relative; flex:1 1 auto; padding-top:19px; padding-bottom:20px; }   /* headroom for Eₐ/cat labels above and cold/hot caption below */
+  .meter{ position:relative; height:22px; border-radius:8px; cursor:grab; touch-action:none; }
+  .meter:active{ cursor:grabbing; }
+  .meter:focus-visible{ outline:2px solid var(--cyan); outline-offset:4px; }
+  .meter-track{ position:absolute; inset:0; border-radius:8px; background:linear-gradient(90deg,#3b82f6,#f59e0b); border:1px solid var(--line); overflow:hidden; }
+  .meter-fill{ position:absolute; top:0; bottom:0; right:0; width:100%; background:var(--panel-2); transition:width .08s linear; }
+  .meter-thumb{ position:absolute; top:50%; left:0; transform:translate(-50%,-50%);
+    width:13px; height:28px; border-radius:5px; background:var(--ink);
+    border:3px solid var(--cyan); box-shadow:0 0 11px rgba(52,211,238,.55);
+    z-index:4; pointer-events:none; }
+  .meter-mark{ position:absolute; top:-4px; bottom:-4px; width:3px; margin-left:-1.5px; left:30%; border-radius:2px; background:var(--amber);
+    box-shadow:0 0 0 1.5px rgba(7,10,19,.92), 0 0 8px 1px var(--amber); z-index:2; pointer-events:none; }
+  .meter-mark::after{ content:"Eₐ"; position:absolute; top:-16px; left:50%; transform:translateX(-50%); white-space:nowrap;
+    font-family:var(--mono); font-size:.64rem; font-weight:700; color:var(--amber);
+    text-shadow:0 1px 2px rgba(7,10,19,.95), 0 0 3px rgba(7,10,19,.95); }
+  .meter-mark.cat{ background:var(--green); box-shadow:0 0 0 1.5px rgba(7,10,19,.92), 0 0 8px 1px var(--green); }
+  .meter-mark.cat::after{ content:"cat"; color:var(--green); }
+  .meter-cap{ position:absolute; left:0; right:0; top:47px; display:flex; justify-content:space-between; align-items:baseline; gap:8px; white-space:nowrap; font-family:var(--mono); font-size:.66rem; color:var(--muted); }
+  .meter-cap .hint{ overflow:hidden; text-overflow:ellipsis; }
+  .toggles{ display:flex; gap:18px; flex-wrap:wrap; }
+  .toggle{ display:flex; align-items:center; gap:8px; font-size:.85rem; color:var(--muted); cursor:pointer; user-select:none; }
+  .toggle input{ accent-color:var(--cyan); width:16px; height:16px; cursor:pointer; }
+  .btns{ display:flex; gap:10px; flex-wrap:wrap; }
+  button{ padding:11px 22px; font-size:.95rem; font-weight:700; font-family:var(--sans); border:none; border-radius:9px; cursor:pointer; transition:transform .06s, background .15s, box-shadow .15s; }
+  button:active{ transform:translateY(1px); }
+  .fire{ background:var(--cyan); color:#04212b; box-shadow:0 0 18px -2px var(--cyan); }
+  .fire:hover{ background:#5fe0f4; }
+  .fire:disabled{ background:#2a3550; color:#5d6a8a; box-shadow:none; cursor:not-allowed; }
+  .ghost{ background:transparent; color:var(--ink); border:1px solid var(--line); position:relative; overflow:hidden; }
+  .ghost:hover{ background:var(--panel-2); }
+  .ghost:disabled{ color:#5d6a8a; cursor:not-allowed; }
+  /* cooldown sweep that drains left→right under the label */
+  .batch-btn .cool-fill{ position:absolute; inset:0; transform-origin:left center; transform:scaleX(0);
+    background:linear-gradient(90deg, rgba(52,211,238,.28), rgba(52,211,238,.10)); pointer-events:none; z-index:0; }
+  .batch-btn .cool-fill.run{ transform:scaleX(1); }
+  .batch-btn.cooling{ border-color:rgba(52,211,238,.4); }
+  .batch-btn .label{ position:relative; z-index:1; }
+  .batch-btn.firing{ box-shadow:0 0 22px -2px var(--cyan); border-color:var(--cyan); }
+  .stats{ display:flex; gap:10px; flex-wrap:wrap; margin-top:18px; }
+  .stat{ flex:1 1 120px; background:var(--panel); border:1px solid var(--line); border-radius:11px; padding:12px 14px; }
+  .stat .n{ font-family:var(--mono); font-size:1.45rem; color:var(--cyan); line-height:1; }
+  .stat .l{ font-size:.72rem; color:var(--muted); margin-top:5px; letter-spacing:.04em; }
+  a.worksheet{
+    display:flex; align-items:center; gap:14px; text-decoration:none;
+    margin-top:18px; padding:15px 17px;
+    border:1px solid var(--line); border-radius:12px;
+    background:linear-gradient(180deg, var(--panel-2), var(--panel));
+    color:var(--ink); transition:border-color .15s, transform .06s, box-shadow .15s;
+  }
+  a.worksheet:hover{ border-color:var(--cyan); box-shadow:0 0 0 1px var(--cyan) inset, 0 10px 30px -20px var(--cyan); }
+  a.worksheet:active{ transform:translateY(1px); }
+  .ws-icon{ color:var(--cyan); flex:0 0 auto; display:flex; }
+  .ws-text{ flex:1 1 auto; min-width:0; }
+  .ws-title{ display:block; font-weight:700; font-size:1rem; letter-spacing:-.01em; }
+  .ws-sub{ display:block; color:var(--muted); font-size:.85rem; margin-top:2px; line-height:1.4; }
+  .ws-go{ flex:0 0 auto; font-family:var(--mono); font-size:.78rem; color:var(--cyan); white-space:nowrap; }
+  @media (max-width:560px){ .row .cap{ flex-basis:104px; font-size:.62rem; } h1{ font-size:1.4rem; } .meter-cap{ font-size:.6rem; } .meter-cap .hint{ display:none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">Collision Theory · Reaction Kinetics</p>
+  <h1>Collision Theory Simulation</h1>
+  <p class="lede">A reaction needs two things to happen: the molecules must collide in the right <em>orientation</em>, and with enough <em>energy</em> to clear the activation barrier.</p>
+
+  <div class="panel">
+    <div class="pick">
+      <div class="field">
+        <label class="cap" for="reactionSelect">Reaction</label>
+        <div class="select-wrap"><select id="reactionSelect"></select></div>
+      </div>
+    </div>
+
+    <p class="blurb" id="blurb"></p>
+
+    <div class="chamber-shell">
+      <span class="chip" id="chipReq">orientation: —</span>
+      <canvas id="sim" width="820" height="380"></canvas>
+    </div>
+
+    <div class="status">
+      <span class="verdict" id="verdict">Ready</span>
+      <span class="pill na" id="pillOrient" style="display:none">orientation —</span>
+      <span class="pill na" id="pillEnergy" style="display:none">energy —</span>
+    </div>
+
+    <div class="controls">
+      <div class="row" id="rowA">
+        <span class="cap" id="capA">Angle · A</span>
+        <div class="aslider" id="angleA" role="slider" tabindex="0"
+             aria-label="Angle A" aria-valuemin="0" aria-valuemax="360" aria-valuenow="0">
+          <div class="aslider-track"></div>
+          <div class="aslider-thumb" id="thumbA"></div>
+        </div>
+        <span class="val" id="valA">0°</span>
+      </div>
+      <div class="row" id="rowB" style="display:none">
+        <span class="cap" id="capB">Angle · B</span>
+        <div class="aslider" id="angleB" role="slider" tabindex="0"
+             aria-label="Angle B" aria-valuemin="0" aria-valuemax="360" aria-valuenow="0">
+          <div class="aslider-track"></div>
+          <div class="aslider-thumb" id="thumbB"></div>
+        </div>
+        <span class="val" id="valB">0°</span>
+      </div>
+
+      <div class="energy-control">
+        <div class="row energy-row">
+          <span class="cap">Collision energy</span>
+          <div class="meter-wrap">
+            <div class="meter" id="energyMeter" role="slider" tabindex="0"
+                 aria-label="Collision energy" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <div class="meter-track">
+                <div class="meter-fill" id="keFill"></div>
+              </div>
+              <div class="meter-mark" id="eaMark"></div>
+              <div class="meter-mark cat" id="eaMarkCat" style="display:none"></div>
+              <div class="meter-thumb" id="keThumb"></div>
+            </div>
+            <div class="meter-cap"><span>cold</span><span class="hint">drag the bar to set energy</span><span>hot</span></div>
+          </div>
+          <span class="val" id="keLabel">KE 0</span>
+        </div>
+      </div>
+
+      <div class="toggles">
+        <label class="toggle"><input type="checkbox" id="tConditions"> Show reaction conditions</label>
+        <label class="toggle"><input type="checkbox" id="tCatalyst"> Add catalyst</label>
+        <label class="toggle"><input type="checkbox" id="tVib" checked> Thermal motion</label>
+      </div>
+
+      <div class="btns">
+        <button class="fire" id="fireBtn">Collide</button>
+        <button class="fire" id="skipBtn" style="display:none">Skip ▸▸</button>
+        <button class="ghost batch-btn" id="batch5Btn"><span class="cool-fill"></span><span class="label">Run ×5 (random angle)</span></button>
+        <button class="ghost batch-btn" id="batch10Btn"><span class="cool-fill"></span><span class="label">Run ×10 (random angle)</span></button>
+        <button class="ghost batch-btn" id="batchBtn"><span class="cool-fill"></span><span class="label">Run ×50 (random angle)</span></button>
+        <button class="ghost" id="resetBtn">Reset</button>
+        <button class="ghost" id="clearBtn">Clear tally</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="n" id="sAtt">0</div><div class="l">COLLISIONS FIRED</div></div>
+    <div class="stat"><div class="n" id="sRx">0</div><div class="l">REACTIONS</div></div>
+    <div class="stat"><div class="n" id="sRate">—</div><div class="l">EFFECTIVE COLLISIONS</div></div>
+  </div>
+
+  <a class="worksheet" href="collision-theory.pdf" target="_blank" rel="noopener">
+    <span class="ws-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 2h7l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/>
+        <path d="M13 2v5h5"/>
+        <line x1="8" y1="13" x2="16" y2="13"/>
+        <line x1="8" y1="17" x2="13" y2="17"/>
+      </svg>
+    </span>
+    <span class="ws-text">
+      <span class="ws-title">Worksheet</span>
+      <span class="ws-sub">Collision theory investigation (PDF).</span>
+    </span>
+    <span class="ws-go">Open&nbsp;&rarr;</span>
+  </a>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+const EL = {
+  H:  {fill:"#e6ebf5", text:"#1a2138", r:10},
+  C:  {fill:"#3a4762", text:"#ffffff", r:15},
+  N:  {fill:"#4f7cff", text:"#ffffff", r:14},
+  O:  {fill:"#ff5a5f", text:"#ffffff", r:14},
+  Cl: {fill:"#3ddc84", text:"#06301c", r:16},
+  I:  {fill:"#a779ff", text:"#ffffff", r:18},
+  Br: {fill:"#9e4a2f", text:"#ffffff", r:17},
+};
+
+function mol(atoms, bonds, reactive){
+  return {atoms, bonds: bonds||[], reactive:(reactive===undefined?null:reactive)};
+}
+
+const M = {
+  NO:    mol([{el:"N",x:11,y:0},{el:"O",x:-13,y:0}], [{a:0,b:1,o:2}], 0),
+  O2:    mol([{el:"O",x:13,y:0},{el:"O",x:-13,y:0}], [{a:0,b:1,o:2}]),
+  O3:    mol([{el:"O",x:11,y:0},{el:"O",x:-12,y:-18},{el:"O",x:-12,y:18}], [{a:0,b:1,o:1},{a:0,b:2,o:1}]),
+  NO2:   mol([{el:"N",x:0,y:-6},{el:"O",x:-18,y:11},{el:"O",x:18,y:11}], [{a:0,b:1,o:2},{a:0,b:2,o:1}]),
+  NO2t:  mol([{el:"N",x:14,y:0},{el:"O",x:-8,y:-17},{el:"O",x:-8,y:17}], [{a:0,b:1,o:1},{a:0,b:2,o:2}]),
+  CO:    mol([{el:"C",x:12,y:0},{el:"O",x:-12,y:0}], [{a:0,b:1,o:3}], 0),
+  CO2:   mol([{el:"C",x:0,y:0},{el:"O",x:-25,y:0},{el:"O",x:25,y:0}], [{a:0,b:1,o:2},{a:0,b:2,o:2}]),
+  Cl:    mol([{el:"Cl",x:0,y:0}], [], 0),
+  ClO:   mol([{el:"Cl",x:-13,y:0},{el:"O",x:13,y:0}], [{a:0,b:1,o:1}]),
+  H2:    mol([{el:"H",x:13,y:0},{el:"H",x:-13,y:0}], [{a:0,b:1,o:1}]),
+  I2:    mol([{el:"I",x:16,y:0},{el:"I",x:-16,y:0}], [{a:0,b:1,o:1}]),
+  HI:    mol([{el:"H",x:14,y:0},{el:"I",x:-13,y:0}], [{a:0,b:1,o:1}]),
+  Cl2:   mol([{el:"Cl",x:15,y:0},{el:"Cl",x:-15,y:0}], [{a:0,b:1,o:1}]),
+  HCl:   mol([{el:"H",x:15,y:0},{el:"Cl",x:-12,y:0}], [{a:0,b:1,o:1}], 0),
+  NH3:   mol([{el:"N",x:7,y:0},{el:"H",x:-14,y:-14},{el:"H",x:-17,y:2},{el:"H",x:-14,y:14}], [{a:0,b:1},{a:0,b:2},{a:0,b:3}]),
+  NH4Cl: mol([{el:"N",x:0,y:-2},{el:"H",x:-15,y:-15},{el:"H",x:15,y:-15},{el:"H",x:-15,y:11},{el:"H",x:15,y:11},{el:"Cl",x:0,y:31}], [{a:0,b:1},{a:0,b:2},{a:0,b:3},{a:0,b:4}]),
+  N2:    mol([{el:"N",x:12,y:0},{el:"N",x:-12,y:0}], [{a:0,b:1,o:3}]),
+  H2O:   mol([{el:"O",x:0,y:-2},{el:"H",x:-15,y:11},{el:"H",x:15,y:11}], [{a:0,b:1},{a:0,b:2}]),
+  OH:    mol([{el:"O",x:9,y:0},{el:"H",x:-12,y:0}], [{a:0,b:1}], 0),
+  CH3Br: mol([{el:"C",x:0,y:0},{el:"Br",x:-22,y:0},{el:"H",x:14,y:-13},{el:"H",x:20,y:2},{el:"H",x:14,y:13}], [{a:0,b:1},{a:0,b:2},{a:0,b:3},{a:0,b:4}]),
+  CH3OH: mol([{el:"C",x:0,y:0},{el:"O",x:22,y:2},{el:"H",x:38,y:-7},{el:"H",x:-13,y:-13},{el:"H",x:-19,y:3},{el:"H",x:-13,y:14}], [{a:0,b:1},{a:1,b:2},{a:0,b:3},{a:0,b:4},{a:0,b:5}]),
+  Brm:   mol([{el:"Br",x:0,y:0}], []),
+};
+
+// orient: false  OR  array of constraints {who:'A'|'B'|'target', mode:'toward'|'parallel'|'absDir', tol, atom?, dirDeg?}
+const REACTIONS = [
+  {
+    id:"no_o3", eq:"NO + O₃ → NO₂ + O₂", mode:"two", Ea:18,
+    orient:[{who:"A",mode:"toward",tol:52}],
+    blurb:"Nitric oxide scrubs ozone from the air.",
+    A:M.NO, target:M.O3,
+    products:[ {m:M.NO2,dx:-12,dy:-6,vx:-1.4,vy:-1.1,vrot:-2.5}, {m:M.O2,dx:30,dy:14,vx:2.1,vy:1.4,vrot:3} ]
+  },
+  {
+    id:"co_no2", eq:"CO + NO₂ → CO₂ + NO", mode:"two", Ea:34,
+    orient:[{who:"A",mode:"toward",tol:50}],
+    blurb:"The carbon of CO must hit an oxygen of NO₂ (otherwise, it simply bounces).",
+    A:M.CO, target:M.NO2t,
+    products:[ {m:M.CO2,dx:-8,dy:-4,vx:-1.2,vy:-1.0,vrot:-1.6}, {m:M.NO,dx:30,dy:16,vx:2.1,vy:1.5,vrot:3} ]
+  },
+  {
+    id:"h2_i2", eq:"H₂ + I₂ → 2 HI", mode:"two", Ea:55, tRot:90,
+    orient:[{who:"A",mode:"parallel",tol:32,dirDeg:90}],
+    failOrient:"No reaction. The H₂ bond must be parallel to the I₂ bond.",
+    blurb:"The H₂ and I₂ bonds must line up parallel so all four atoms meet at once.",
+    A:M.H2, target:M.I2,
+    products:[ {m:M.HI,dx:-8,dy:-10,vx:-1.5,vy:-1.6,vrot:4}, {m:M.HI,dx:12,dy:14,vx:1.9,vy:1.6,vrot:-4} ]
+  },
+  {
+    id:"sn2", eq:"OH⁻ + CH₃Br → CH₃OH + Br⁻", mode:"two", Ea:30, aim:"target",
+    orient:[{who:"target",mode:"absDir",atom:1,dirDeg:0,tol:48}],
+    failOrient:"The bromine blocks the carbon. Attack must come from the back.",
+    blurb:"Hydroxide must attack the carbon from the back, directly opposite the bulky bromine.",
+    A:M.OH, target:M.CH3Br,
+    products:[ {m:M.CH3OH,dx:-6,dy:-2,vx:-1.0,vy:-1.0,vrot:-1.4}, {m:M.Brm,dx:32,dy:14,vx:2.2,vy:1.3,vrot:0} ]
+  },
+  {
+    id:"cl_o3", eq:"Cl· + O₃ → ClO + O₂", mode:"two", Ea:9, orient:false,
+    blurb:"A single chlorine radical from a CFC tears an oxygen off ozone. Surprisingly low energy required.",
+    A:M.Cl, target:M.O3,
+    products:[ {m:M.ClO,dx:-10,dy:-6,vx:-1.1,vy:-1.1,vrot:-2}, {m:M.O2,dx:28,dy:14,vx:2.1,vy:1.3,vrot:2.5} ]
+  },
+  {
+    id:"h2_cl2", eq:"H₂ + Cl₂ → 2 HCl", mode:"two", Ea:44, orient:false,
+    blurb:"A spark sets it off (please don't do this at home).",
+    A:M.H2, target:M.Cl2,
+    products:[ {m:M.HCl,dx:-8,dy:-10,vx:-1.5,vy:-1.6,vrot:4}, {m:M.HCl,dx:12,dy:14,vx:1.9,vy:1.6,vrot:-4} ]
+  },
+  {
+    id:"hcl_nh3", eq:"HCl + NH₃ → NH₄Cl", mode:"two", Ea:12,
+    orient:[{who:"A",mode:"toward",tol:60}],
+    blurb:"(Strong) acid meets (weak) base.",
+    A:M.HCl, target:M.NH3,
+    products:[ {m:M.NH4Cl,dx:6,dy:0,vx:0.5,vy:0.3,vrot:0.5} ]
+  },
+  {
+    id:"n2_o2", eq:"N₂ + O₂ → 2 NO", mode:"two", Ea:92, orient:false,
+    blurb:"Requires the heat of an engine cylinder or a lightning bolt.",
+    A:M.N2, target:M.O2,
+    products:[ {m:M.NO,dx:-8,dy:-10,vx:-1.6,vy:-1.5,vrot:3}, {m:M.NO,dx:12,dy:14,vx:2.0,vy:1.6,vrot:-3} ]
+  },
+  {
+    id:"2no_o2", eq:"2 NO + O₂ → 2 NO₂", mode:"three", Ea:26,
+    orient:[{who:"A",mode:"toward",tol:55},{who:"B",mode:"toward",tol:55}],
+    blurb:"A three-body reaction! What are the odds...",
+    A:M.NO, B:M.NO, target:M.O2,
+    products:[ {m:M.NO2,dx:-14,dy:-12,vx:-1.7,vy:-1.5,vrot:-3}, {m:M.NO2,dx:14,dy:14,vx:1.9,vy:1.6,vrot:3} ]
+  },
+  {
+    id:"2h2_o2", eq:"2 H₂ + O₂ → 2 H₂O", mode:"three", Ea:56, orient:false,
+    blurb:"Useful for identifying hydrogen gas (pop test).",
+    A:M.H2, B:M.H2, target:M.O2,
+    products:[ {m:M.H2O,dx:-14,dy:-12,vx:-1.6,vy:-1.5,vrot:3}, {m:M.H2O,dx:14,dy:14,vx:1.9,vy:1.6,vrot:-3} ]
+  },
+];
+
+const PRETTY = {NO:"NO",O2:"O₂",O3:"O₃",NO2:"NO₂",NO2t:"NO₂",CO:"CO",CO2:"CO₂",Cl:"Cl·",ClO:"ClO",H2:"H₂",I2:"I₂",HI:"HI",Cl2:"Cl₂",HCl:"HCl",NH3:"NH₃",NH4Cl:"NH₄Cl",N2:"N₂",H2O:"H₂O",OH:"OH⁻",CH3Br:"CH₃Br",CH3OH:"CH₃OH",Brm:"Br⁻"};
+
+const cv = document.getElementById("sim");
+const ctx = cv.getContext("2d");
+const W = cv.width, H = cv.height;
+const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const el = id => document.getElementById(id);
+const sel = el("reactionSelect");
+const BODY_FONT = getComputedStyle(document.body).fontFamily;
+
+let rx = REACTIONS[0];
+let state = "IDLE";
+let rotA = 0, rotB = 0, energy = 0;
+let success = false;
+let raf = null;
+let bodies = [];
+let swarm = [];          // free-moving molecules shown during the Run ×50 batch animation
+let particles = [];
+let flash = 0;
+let lastEval = {orient:null, energy:null};
+let stats = {att:0, rx:0};
+
+const layout = {
+  two:   { target:{x:560,y:190}, A:{x:120,y:190} },
+  three: { target:{x:540,y:200}, A:{x:110,y:200}, B:{x:300,y:64} },
+};
+let A = {x:0,y:0}, B = {x:0,y:0}, T = {x:0,y:0}, C = {x:0,y:0}, Bstop = {x:0,y:0};
+
+// ---- geometry helpers ----
+function rot(x,y,rad){ const c=Math.cos(rad),s=Math.sin(rad); return [x*c - y*s, x*s + y*c]; }
+function norm(a){ return Math.atan2(Math.sin(a), Math.cos(a)); }
+function dist(p,q){ return Math.hypot(p.x-q.x, p.y-q.y); }
+function speedFromEnergy(){ return 2.5 + (energy/100)*15; }
+function showConditions(){ return el("tConditions").checked; }
+const CAT = 0.55;                                   // catalyst lowers Eₐ to 55% of original
+function effEa(){ return el("tCatalyst").checked ? Math.round(rx.Ea*CAT) : rx.Ea; }
+
+function molObj(who){ return who==="A"?rx.A : who==="B"?rx.B : rx.target; }
+function molPos(who){ return who==="A"?A : who==="B"?B : T; }
+function molRot(who){
+  if(who==="A") return rx.aim==="target" ? 0 : rotA;
+  if(who==="B") return rotB;
+  return (rx.aim==="target" ? rotA : 0) + (rx.tRot||0);   // target base orientation
+}
+
+// ---- drawing ----
+let grad = null;
+function bg(){
+  if(!grad){
+    grad = ctx.createRadialGradient(W*0.5,H*0.45,40, W*0.5,H*0.5, W*0.7);
+    grad.addColorStop(0,"#121a2e"); grad.addColorStop(1,"#070a13");
+  }
+  ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle = "rgba(255,255,255,0.025)";
+  for(let gx=30; gx<W; gx+=34) for(let gy=30; gy<H; gy+=34){ ctx.beginPath(); ctx.arc(gx,gy,1.1,0,7); ctx.fill(); }
+}
+
+function bond(p1,p2,order){
+  order = order||1;
+  const dx=p2.x-p1.x, dy=p2.y-p1.y, len=Math.hypot(dx,dy)||1;
+  const px=-dy/len, py=dx/len;
+  const offs = order===1?[0] : order===2?[-3.2,3.2] : [-4.6,0,4.6];
+  ctx.strokeStyle = "rgba(206,216,235,0.55)";
+  ctx.lineWidth = order===1?3.4:2.5; ctx.lineCap="round";
+  offs.forEach(o=>{ ctx.beginPath(); ctx.moveTo(p1.x+px*o, p1.y+py*o); ctx.lineTo(p2.x+px*o, p2.y+py*o); ctx.stroke(); });
+}
+
+function atom(x,y,elName,ring){
+  const e = EL[elName] || EL.O;
+  ctx.save(); ctx.shadowColor = e.fill; ctx.shadowBlur = 14;
+  ctx.beginPath(); ctx.arc(x,y,e.r,0,7); ctx.fillStyle=e.fill; ctx.fill(); ctx.restore();
+  if(ring){
+    ctx.beginPath(); ctx.arc(x,y,e.r+5,0,7);
+    ctx.strokeStyle="#ffd24a"; ctx.lineWidth=2.6; ctx.setLineDash([4,3]); ctx.stroke(); ctx.setLineDash([]);
+  }
+  ctx.beginPath(); ctx.arc(x,y,e.r,0,7); ctx.strokeStyle="rgba(8,12,22,0.85)"; ctx.lineWidth=2; ctx.stroke();
+  ctx.fillStyle=e.text; ctx.font="bold 13px "+BODY_FONT; ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.fillText(elName, x, y+0.5);
+}
+
+function drawMolecule(cx, cy, m, rotDeg, opts){
+  opts = opts||{};
+  const rad = (rotDeg||0)*Math.PI/180;
+  const jitter = opts.vib ? (reduceMotion?0:(2 + (energy/100)*4)) : 0;
+  const rings = opts.rings || [];
+  const pts = m.atoms.map(a=>{
+    const [rxp,ryp] = rot(a.x,a.y,rad);
+    const jx = jitter? (Math.random()-0.5)*jitter : 0;
+    const jy = jitter? (Math.random()-0.5)*jitter : 0;
+    return {x:cx+rxp+jx, y:cy+ryp+jy};
+  });
+  m.bonds.forEach(b=> bond(pts[b.a], pts[b.b], b.o));
+  m.atoms.forEach((a,i)=> atom(pts[i].x, pts[i].y, a.el, rings.indexOf(i)>=0));
+  return pts;
+}
+
+function arrow(P, dir){
+  const sx=P.x+Math.cos(dir)*30, sy=P.y+Math.sin(dir)*30;
+  const ex=P.x+Math.cos(dir)*66, ey=P.y+Math.sin(dir)*66;
+  ctx.strokeStyle="rgba(255,210,74,0.5)"; ctx.lineWidth=2.5; ctx.setLineDash([5,4]);
+  ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(ex,ey); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle="rgba(255,210,74,0.7)";
+  ctx.beginPath();
+  ctx.moveTo(ex+Math.cos(dir)*7, ey+Math.sin(dir)*7);
+  ctx.lineTo(ex+Math.cos(dir+2.5)*8, ey+Math.sin(dir+2.5)*8);
+  ctx.lineTo(ex+Math.cos(dir-2.5)*8, ey+Math.sin(dir-2.5)*8);
+  ctx.closePath(); ctx.fill();
+}
+
+function ringsFor(who){
+  if(!showConditions() || !rx.orient) return [];
+  const out=[];
+  rx.orient.filter(c=>c.who===who && c.mode==="toward").forEach(c=>{
+    out.push(c.atom!==undefined?c.atom:molObj(who).reactive);
+  });
+  return out;
+}
+
+function drawGuides(){
+  if(!showConditions()) return;
+  arrow(A, Math.atan2(T.y-A.y, T.x-A.x));                          // incoming molecule always shows its approach
+  if(rx.mode==="three") arrow(B, Math.atan2(T.y-B.y, T.x-B.x));
+}
+
+// red (wrong) / green (correct) ring around the target atom whose orientation matters.
+// tPts are the actual drawn (jittered) atom positions, so the ring shakes with the atom.
+function drawStatusRings(tPts){
+  if(!showConditions() || !rx.orient || !tPts) return;
+  rx.orient.filter(c=>c.who==="target").forEach(c=>{
+    const ai=(c.atom!==undefined?c.atom:rx.target.reactive);
+    if(ai===undefined||ai===null) return;
+    const a=rx.target.atoms[ai], e=EL[a.el]||EL.O, p=tPts[ai];
+    const ok=checkConstraint(c);
+    ctx.beginPath(); ctx.arc(p.x, p.y, e.r+6, 0, 7);
+    ctx.strokeStyle = ok ? "#34d399" : "#fb7185"; ctx.lineWidth=3;
+    ctx.setLineDash([5,4]); ctx.stroke(); ctx.setLineDash([]);
+  });
+}
+
+function spawnSpark(x,y){
+  if(reduceMotion) return;
+  for(let i=0;i<7;i++){
+    const a=Math.random()*7, sp=1+Math.random()*2.6;
+    particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:0.8,col:"#34d399",r:1+Math.random()*1.8});
+  }
+}
+
+function spawnBurst(x,y){
+  if(reduceMotion){ flash=10; return; }
+  const cols=["#34d3ee","#ffffff","#ffd24a","#34d399"];
+  for(let i=0;i<28;i++){
+    const a=Math.random()*7, sp=1.5+Math.random()*4.5;
+    particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1,col:cols[i%cols.length],r:1.5+Math.random()*2.5});
+  }
+  flash=14;
+}
+
+function drawParticles(){
+  if(flash>0){ ctx.save(); ctx.globalAlpha=flash/14*0.25; ctx.fillStyle="#9fe9ff"; ctx.fillRect(0,0,W,H); ctx.restore(); flash--; }
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.x+=p.vx; p.y+=p.vy; p.vx*=0.96; p.vy*=0.96; p.life-=0.025;
+    if(p.life<=0){ particles.splice(i,1); continue; }
+    ctx.save(); ctx.globalAlpha=Math.max(p.life,0); ctx.shadowColor=p.col; ctx.shadowBlur=8;
+    ctx.fillStyle=p.col; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill(); ctx.restore();
+  }
+}
+
+// ---- batch swarm: molecules accumulate one pair at a time as the counter climbs ----
+// Approximate collision radius of a molecule: farthest atom centre + that atom's draw radius.
+function molRadius(m){
+  let maxR = 0;
+  for(const a of m.atoms){
+    const er = (EL[a.el]||EL.O).r;
+    const d = Math.hypot(a.x, a.y) + er;
+    if(d > maxR) maxR = d;
+  }
+  return maxR;
+}
+function batchSpeedFactor(){
+  // higher collision energy → faster swarm. ~0.65× at 0 energy, ~2.2× at full.
+  return 0.65 + (energy/100) * 1.55;
+}
+function batchSpecies(){
+  // reactant pool and product pool for this reaction
+  const reactants = [{m:rx.A, name:nameOf(rx.A)}];
+  if(rx.mode==="three") reactants.push({m:rx.B, name:nameOf(rx.B)});
+  reactants.push({m:rx.target, name:nameOf(rx.target)});
+  const products = (rx.products||[]).map(p=>({m:p.m, name:nameOf(p.m)}));
+  return {reactants, products};
+}
+
+let _spc = null;
+let _shotId = 0;
+function resetSwarm(){
+  swarm = [];
+  _spc = batchSpecies();
+  _shotId = 0;
+}
+
+// Place one molecule into the swarm at a random spot, orientation and velocity.
+function addMolecule(m, opts){
+  opts = opts || {};
+  const margin = 50;
+  const r = molRadius(m);
+  const ang = Math.random()*Math.PI*2;
+  const base = (0.8 + Math.random()*2.4) * batchSpeedFactor();
+  swarm.push({
+    m,
+    x: opts.x !== undefined ? opts.x : margin + Math.random()*(W - margin*2),
+    y: opts.y !== undefined ? opts.y : margin + Math.random()*(H - margin*2),
+    vx: Math.cos(ang)*base,
+    vy: Math.sin(ang)*base,
+    rot: Math.random()*360,
+    vrot: (Math.random()*2-1)*4,
+    r,
+    mass: r*r,                      // mass ∝ area, so big molecules shove little ones
+    born: opts.born !== undefined ? opts.born : 1   // fade-in counter (frames)
+  });
+  return swarm[swarm.length-1];
+}
+
+// During the counting phase each shot spawns the FULL reactant set (e.g. one NO + one O₃).
+// Hit shots are tagged so their reactants convert into the full product set once the phase ends.
+function spawnShot(hit){
+  if(!_spc) _spc = batchSpecies();
+  _shotId++;
+  for(const sp of _spc.reactants){
+    const b = addMolecule(sp.m);
+    b.hit = hit;
+    b.shotId = _shotId;
+  }
+}
+
+// After the collision phase: each reacted shot's reactants become the product set, in place.
+function formProducts(){
+  if(!_spc || !_spc.products.length) return;
+  // group the hit reactant bodies by shot
+  const groups = {};
+  for(const b of swarm){
+    if(b.hit && b.shotId){ (groups[b.shotId] = groups[b.shotId] || []).push(b); }
+  }
+  const keep = [];
+  for(const b of swarm){ if(!(b.hit && b.shotId)) keep.push(b); }   // misses stay as-is
+  Object.values(groups).forEach(reactBodies=>{
+    // average position of this shot's reactants → spawn products near there
+    let cx=0, cy=0; reactBodies.forEach(b=>{ cx+=b.x; cy+=b.y; });
+    cx/=reactBodies.length; cy/=reactBodies.length;
+    _spc.products.forEach(p=>{
+      const r = molRadius(p.m);
+      const ang = Math.random()*Math.PI*2;
+      const base = (0.8 + Math.random()*2.4) * batchSpeedFactor();
+      keep.push({
+        m:p.m,
+        x: cx + (Math.random()*40-20),
+        y: cy + (Math.random()*40-20),
+        vx: Math.cos(ang)*base, vy: Math.sin(ang)*base,
+        rot: Math.random()*360, vrot:(Math.random()*2-1)*4,
+        r, mass:r*r, born:4
+      });
+    });
+    if(!reduceMotion) spawnSpark(cx, cy);
+  });
+  swarm = keep;
+  flash = Math.max(flash, 8);
+}
+
+function updateSwarm(collide){
+  const margin = 34;
+  for(const b of swarm){
+    b.x += b.vx; b.y += b.vy; b.rot += b.vrot;
+    if(b.born < 8) b.born++;        // ease the pop-in
+    // bounce off the walls, keeping them inside the chamber
+    if(b.x < margin){ b.x = margin; b.vx = Math.abs(b.vx); }
+    else if(b.x > W-margin){ b.x = W-margin; b.vx = -Math.abs(b.vx); }
+    if(b.y < margin){ b.y = margin; b.vy = Math.abs(b.vy); }
+    else if(b.y > H-margin){ b.y = H-margin; b.vy = -Math.abs(b.vy); }
+  }
+  if(!collide) return;               // after the reaction phase the molecules pass through each other
+  // perfectly elastic molecule–molecule collisions (resolved along the line of centres)
+  for(let i=0;i<swarm.length;i++){
+    const a = swarm[i];
+    for(let j=i+1;j<swarm.length;j++){
+      const b = swarm[j];
+      let dx = b.x - a.x, dy = b.y - a.y;
+      let d2 = dx*dx + dy*dy;
+      const rsum = (a.r + b.r) * 0.85;            // slightly tighter than visual radius feels right
+      if(d2 > rsum*rsum || d2 === 0) continue;
+      let d = Math.sqrt(d2) || 0.0001;
+      const nx = dx/d, ny = dy/d;                 // collision normal
+      // separate the overlap so they don't stick together
+      const overlap = rsum - d;
+      const ma = a.mass, mb = b.mass, mt = ma + mb;
+      a.x -= nx * overlap * (mb/mt);
+      a.y -= ny * overlap * (mb/mt);
+      b.x += nx * overlap * (ma/mt);
+      b.y += ny * overlap * (ma/mt);
+      // relative velocity along the normal
+      const rvx = b.vx - a.vx, rvy = b.vy - a.vy;
+      const vn = rvx*nx + rvy*ny;
+      if(vn > 0) continue;                         // already separating
+      // elastic impulse (restitution = 1)
+      const imp = (2 * vn) / mt;
+      a.vx += imp * mb * nx;  a.vy += imp * mb * ny;
+      b.vx -= imp * ma * nx;  b.vy -= imp * ma * ny;
+      // a little angular kick on impact
+      a.vrot += (Math.random()-0.5)*1.5;
+      b.vrot += (Math.random()-0.5)*1.5;
+    }
+  }
+}
+
+function render(){
+  bg();
+  const vib = el("tVib").checked && (state==="IDLE"||state==="MOVING");
+  if(state==="RESULT"){
+    bodies.forEach(b=> drawMolecule(b.x,b.y,b.m,b.rot,{}));
+    drawParticles();
+    return;
+  }
+  if(state==="BATCH" || state==="SWARM"){
+    const vibrate = (state==="BATCH");               // jitter while counting; stay steady once settled
+    swarm.forEach(b=>{
+      const a = Math.min(1, (b.born||8)/8);
+      ctx.save();
+      if(a < 1) ctx.globalAlpha = a;
+      drawMolecule(b.x, b.y, b.m, b.rot, {vib:vibrate});
+      ctx.restore();
+    });
+    drawParticles();
+    return;
+  }
+  drawGuides();
+  const tPts = drawMolecule(T.x,T.y,rx.target,molRot("target"),{vib,rings:ringsFor("target")});
+  drawMolecule(A.x,A.y,rx.A,molRot("A"),{vib,rings:ringsFor("A")});
+  if(rx.mode==="three") drawMolecule(B.x,B.y,rx.B,rotB,{vib,rings:ringsFor("B")});
+  drawStatusRings(tPts);
+  drawParticles();
+}
+
+function step(){
+  if(state==="MOVING"){
+    const sp = speedFromEnergy();
+    A.x += sp;
+    if(rx.mode==="three"){
+      if(dist(B,Bstop) > sp){ const a=Math.atan2(Bstop.y-B.y,Bstop.x-B.x); B.x+=Math.cos(a)*sp; B.y+=Math.sin(a)*sp; }
+      else { B.x=Bstop.x; B.y=Bstop.y; }
+    }
+    const triggerX = T.x - (rx.mode==="three"?64:54);
+    if(A.x >= triggerX){ A.x = triggerX; evaluate(); }
+  } else if(state==="RESULT"){
+    bodies.forEach(b=>{ b.x+=b.vx; b.y+=b.vy; b.rot+=b.vrot; b.vx*=0.992; b.vy*=0.992; });
+  } else if(state==="SWARM"){
+    if(!reduceMotion) updateSwarm(false);  // collisions off: molecules drift through one another
+  }
+  render();
+  raf = requestAnimationFrame(step);
+}
+
+function checkConstraint(c){
+  const m=molObj(c.who), P=molPos(c.who), rrad=molRot(c.who)*Math.PI/180;
+  const tol=(c.tol||50)*Math.PI/180;
+  if(c.mode==="parallel"){
+    const b=m.bonds[0], a1=m.atoms[b.a], a2=m.atoms[b.b];
+    const axis=Math.atan2(a2.y-a1.y, a2.x-a1.x)+rrad;
+    let dd=Math.abs(norm(axis-(c.dirDeg||0)*Math.PI/180));
+    if(dd>Math.PI/2) dd=Math.PI-dd;        // parallel = mod 180
+    return dd<=tol;
+  }
+  const ai=(c.atom!==undefined?c.atom:m.reactive);
+  const a=m.atoms[ai];
+  const pointDir=Math.atan2(a.y,a.x)+rrad;
+  let desired;
+  if(c.mode==="absDir") desired=(c.dirDeg||0)*Math.PI/180;
+  else { const ref=(c.who==="target")?A:T; desired=Math.atan2(ref.y-P.y, ref.x-P.x); }
+  return Math.abs(norm(pointDir-desired))<=tol;
+}
+
+function evaluate(){
+  state="RESULT";
+  stats.att++;
+  const orientPass = rx.orient ? rx.orient.every(checkConstraint) : null;
+  const energyPass = energy >= effEa();
+  lastEval = {orient:orientPass, energy:energyPass};
+  success = (orientPass!==false) && energyPass;
+  C = {x:T.x-16, y:T.y};
+
+  if(success){
+    stats.rx++;
+    bodies = rx.products.map(p=>({ m:p.m, x:C.x+p.dx, y:C.y+p.dy, vx:p.vx, vy:p.vy, rot:Math.random()*40-20, vrot:p.vrot||0 }));
+    spawnBurst(C.x, C.y);
+  } else {
+    bodies = [
+      {m:rx.A, x:A.x, y:A.y, vx:-2.6, vy:-1.4, rot:molRot("A"), vrot:-2.5},
+      {m:rx.target, x:T.x, y:T.y, vx:2.4, vy:1.5, rot:molRot("target"), vrot:2.5},
+    ];
+    if(rx.mode==="three") bodies.push({m:rx.B, x:B.x, y:B.y, vx:-1.6, vy:2.6, rot:rotB, vrot:2});
+  }
+  updateVerdict();
+}
+
+function nameOf(m){ for(const k in M){ if(M[k]===m) return PRETTY[k]||k; } return "?"; }
+function productNames(){
+  const seen={};
+  rx.products.forEach(p=>{ const n=nameOf(p.m); seen[n]=(seen[n]||0)+1; });
+  return Object.keys(seen).map(n=>(seen[n]>1?seen[n]+" ":"")+n).join(" + ");
+}
+
+function updateVerdict(){
+  const v=el("verdict"), po=el("pillOrient"), pe=el("pillEnergy");
+  if(state!=="RESULT"){
+    po.style.display="none"; pe.style.display="none";
+    if(state==="MOVING"){ v.textContent="Colliding…"; v.style.color="var(--cyan)"; }
+    else { v.textContent="Ready"; v.style.color="var(--ink)"; }
+    return;
+  }
+  po.style.display=""; pe.style.display="";
+  pe.className="pill "+(lastEval.energy?"ok":"bad");
+  pe.textContent= lastEval.energy?"energy ✓ cleared Eₐ":"energy ✗ below Eₐ";
+  if(lastEval.orient===null){ po.className="pill na"; po.textContent="orientation — not required"; }
+  else { po.className="pill "+(lastEval.orient?"ok":"bad"); po.textContent= lastEval.orient?"orientation ✓ aligned":"orientation ✗ misaimed"; }
+
+  if(success){ v.textContent="Reaction! → "+productNames(); v.style.color="var(--green)"; return; }
+  v.style.color="var(--red)";
+  const oFail=lastEval.orient===false, eFail=!lastEval.energy;
+  if(oFail && eFail) v.textContent="No reaction.";
+  else if(oFail) v.textContent= rx.failOrient || "No reaction.";
+  else v.textContent="No reaction.";
+}
+
+function orientLabel(){
+  if(!rx.orient) return "orientation: not required";
+  const c=rx.orient[0];
+  if(c.mode==="parallel") return "orientation: bond parallel ±"+(c.tol||32)+"°";
+  if(c.mode==="absDir")   return "orientation: backside attack ±"+(c.tol||48)+"°";
+  if(rx.orient.length>1)  return "orientation: aim both ±"+(c.tol||50)+"°";
+  return "orientation: aim required ±"+(c.tol||50)+"°";
+}
+
+function updateConditionsUI(){
+  const show=showConditions(), cat=el("tCatalyst").checked;
+  el("chipReq").style.display = show ? "" : "none";
+  el("eaMark").style.display = show ? "" : "none";
+  el("eaMark").style.opacity = cat ? "0.4" : "1";       // dim original barrier when catalyzed
+  el("eaMarkCat").style.display = (show && cat) ? "" : "none";
+}
+
+function refreshMeter(){
+  el("keFill").style.width = (100-energy)+"%";
+  el("eaMark").style.left = "calc(6.5px + "+(rx.Ea/100)+" * (100% - 13px))";
+  el("eaMarkCat").style.left = "calc(6.5px + "+(effEa()/100)+" * (100% - 13px))";
+  el("keLabel").textContent = "KE "+energy;
+  el("keThumb").style.left = "calc(3px + "+(energy/100)+" * (100% - 6px))";
+  el("energyMeter").setAttribute("aria-valuenow", energy);
+  updateConditionsUI();
+}
+function refreshStats(){
+  el("sAtt").textContent = stats.att;
+  el("sRx").textContent = stats.rx;
+  el("sRate").textContent = stats.att? Math.round(stats.rx/stats.att*100)+"%" : "—";
+}
+
+function loadReaction(){
+  rx = REACTIONS.find(r=>r.id===sel.value) || REACTIONS[0];
+  el("blurb").textContent = rx.blurb;
+  el("chipReq").textContent = orientLabel();
+  el("rowB").style.display = rx.mode==="three" ? "flex" : "none";
+  el("capA").textContent = "Angle · " + nameOf(rx.aim==="target" ? rx.target : rx.A);
+  if(rx.mode==="three") el("capB").textContent = "Angle · " + nameOf(rx.B);
+  // fresh start on every reaction switch: zero the collision energy, angles, and hide the reaction conditions
+  energy = 0;
+  rotA = 0; rotB = 0;
+  setAngle("A", 0);
+  setAngle("B", 0);
+  el("tConditions").checked = false;
+  el("tCatalyst").checked = false;
+  stats = {att:0, rx:0};
+  reset();
+}
+
+function reset(){
+  if(raf) cancelAnimationFrame(raf);
+  clearBatchTimers();
+  batchActive = false;
+  _skipBatch = false;
+  el("skipBtn").style.display = "none";          // restore Collide if a batch was interrupted
+  el("fireBtn").style.display = "";
+  // restore all batch buttons to their resting state in case a cooldown was mid-flight
+  BATCH_IDS.forEach(id=>{
+    const btn=el(id); btn.classList.remove("cooling","firing");
+    const fill=btn.querySelector(".cool-fill"); if(fill){ fill.style.transition="none"; fill.classList.remove("run"); }
+    const label=btn.querySelector(".label"); if(label) label.textContent=BATCH_LABELS[id];
+  });
+  state="IDLE"; success=false; bodies=[]; swarm=[]; particles=[]; flash=0;
+  lastEval={orient:null, energy:null};
+  setControlsDisabled(false);
+  if(sel) sel.disabled=false;
+  const L = layout[rx.mode];
+  T = {x:L.target.x, y:L.target.y};
+  A = {x:L.A.x, y:L.A.y};
+  if(rx.mode==="three"){ B = {x:L.B.x, y:L.B.y}; Bstop = {x:T.x-34, y:T.y-44}; }
+  refreshMeter(); updateConditionsUI(); updateVerdict(); refreshStats();
+  raf = requestAnimationFrame(step);
+}
+
+function fire(){
+  if(state==="SWARM") reset();        // clear the floating molecules and re-rack
+  if(state!=="IDLE") return;
+  state="MOVING";
+  el("fireBtn").disabled=true; BATCH_IDS.forEach(id=> el(id).disabled=true); el("angleA").classList.add("disabled"); el("angleB").classList.add("disabled");
+  updateVerdict();
+}
+
+// Statistical sampler: rapid-fire n collisions with random orientation at the current
+// energy, the way a real flask of molecules tumbles at every angle at once. Counts how
+// many are EFFECTIVE (correct orientation AND energy >= Eₐ) and adds them to the tally.
+// Now animated: the molecules visibly tumble through random aims while a counter ticks up,
+// hits spark green on the target, then the button enters a short cooldown.
+let batchTimers = [];
+let batchActive = false;
+let _skipBatch = false;
+function clearBatchTimers(){ batchTimers.forEach(clearTimeout); batchTimers = []; if(batchRAF) cancelAnimationFrame(batchRAF); batchRAF=0; if(coolRAF) cancelAnimationFrame(coolRAF); coolRAF=0; }
+let batchRAF = 0;
+let coolRAF = 0;
+
+function setControlsDisabled(d){
+  el("fireBtn").disabled=d;
+  BATCH_IDS.forEach(id=> el(id).disabled=d);
+  el("resetBtn").disabled=d; el("clearBtn").disabled=d;
+  el("angleA").classList.toggle("disabled", d);
+  el("angleB").classList.toggle("disabled", d);
+  sel.disabled = d;
+}
+
+const BATCH_LABELS = { batch5Btn: "Run ×5 (random angle)", batch10Btn: "Run ×10 (random angle)", batchBtn: "Run ×50 (random angle)" };
+const BATCH_IDS = Object.keys(BATCH_LABELS);
+
+function startCooldown(ms, btnId){
+  btnId = btnId || "batchBtn";
+  const btn = el(btnId), fill = btn.querySelector(".cool-fill"), label = btn.querySelector(".label");
+  const baseText = BATCH_LABELS[btnId];
+  btn.disabled = true; btn.classList.add("cooling");
+  // animate the drain: start full, shrink to empty over ms
+  fill.style.transition = "none"; fill.classList.add("run");        // scaleX(1)
+  // force reflow so the next change animates
+  void fill.offsetWidth;
+  fill.style.transition = "transform "+ms+"ms linear";
+  fill.classList.remove("run");                                     // → scaleX(0)
+  const t0 = performance.now();
+  (function tick(){
+    const left = Math.max(0, ms - (performance.now()-t0));
+    label.textContent = "Cooldown "+(left/1000).toFixed(1)+"s";
+    if(left>0){ coolRAF = requestAnimationFrame(tick); }
+  })();
+  batchTimers.push(setTimeout(()=>{
+    if(coolRAF) cancelAnimationFrame(coolRAF); coolRAF=0;
+    btn.classList.remove("cooling");
+    fill.style.transition="none"; fill.classList.remove("run"); void fill.offsetWidth;
+    label.textContent = baseText;
+    if(state==="IDLE") setControlsDisabled(false); else BATCH_IDS.forEach(id=> el(id).disabled=false);
+  }, ms));
+}
+
+function runBatch(n, btnId){
+  if(state==="MOVING" || batchActive) return;
+  btnId = btnId || "batchBtn";
+  if(state!=="IDLE") reset();                 // re-rack molecules so positions are fair
+
+  const savedA=rotA, savedB=rotB;
+
+  // Pre-roll all n shots so the tally is statistically honest; remember which were hits.
+  const shots = [];
+  let hits=0;
+  for(let i=0;i<n;i++){
+    const a=Math.random()*360, bdeg=Math.random()*360;
+    rotA=a; rotB=bdeg;
+    const orientOK = rx.orient ? rx.orient.every(checkConstraint) : true;
+    const hit = orientOK && energy>=effEa();
+    if(hit) hits++;
+    shots.push({a, b:bdeg, hit});
+  }
+  rotA=savedA; rotB=savedB;                    // restore the aim the user had set
+
+  if(reduceMotion){
+    // honour reduced-motion: skip the tumble, place the molecules statically, show the result.
+    stats.att+=n; stats.rx+=hits; refreshStats();
+    el("pillOrient").style.display="none"; el("pillEnergy").style.display="none";
+    resetSwarm();
+    shots.forEach(s=> spawnShot(s.hit));
+    formProducts();                     // reacted ones become products immediately
+    swarm.forEach(b=> b.born = 8);      // no fade-in
+    if(raf){ cancelAnimationFrame(raf); raf = 0; }
+    state = "SWARM";
+    const v=el("verdict");
+    v.textContent = n+" random shots → "+hits+" reacted ("+Math.round(hits/n*100)+"% effective)";
+    v.style.color = hits>0 ? "var(--green)" : "var(--red)";
+    raf = requestAnimationFrame(step);
+    startCooldown(2500, btnId);
+    return;
+  }
+
+  // ---- animated tumble ----
+  batchActive = true;
+  _skipBatch = false;
+  state = "BATCH";
+  if(raf){ cancelAnimationFrame(raf); raf = 0; }   // pause the idle loop; batch drives its own frames
+  resetSwarm();                                     // start empty; molecules appear as the count climbs
+  setControlsDisabled(true);
+  el("fireBtn").style.display = "none";             // swap Collide for Skip while the batch runs
+  el("skipBtn").style.display = "";
+  el(btnId).classList.add("firing");
+  el("pillOrient").style.display="none"; el("pillEnergy").style.display="none";
+  const v=el("verdict"); v.style.color="var(--cyan)";
+
+  const total = n;
+  // steady fill: ~200ms per shot on top of a 1.2s baseline → ×5 ≈ 2.2s, ×10 ≈ 3.2s, ×50 ≈ 11.2s
+  const dur = Math.round(1200 + n*200);
+  const t0 = performance.now();
+  let shown = 0, runningHits = 0;
+
+  function finishBatch(){
+    // spawn any shots not yet shown (covers the skip case)
+    while(shown < total){
+      const s = shots[shown];
+      rotA = s.a; rotB = s.b;
+      spawnShot(s.hit);
+      if(s.hit) runningHits++;
+      shown++;
+    }
+    rotA=savedA; rotB=savedB;
+    stats.att += n; stats.rx += hits; refreshStats();
+    batchActive = false;
+    formProducts();                               // reacted molecules now turn into products
+    state = "SWARM";                              // leave products + leftover reactants floating
+    el(btnId).classList.remove("firing");
+    el("skipBtn").style.display = "none";          // restore Collide
+    el("fireBtn").style.display = "";
+    v.textContent = n+" random shots → "+hits+" reacted ("+Math.round(hits/n*100)+"% effective)";
+    v.style.color = hits>0 ? "var(--green)" : "var(--red)";
+    refreshAngle("A"); refreshAngle("B");
+    setControlsDisabled(false);
+    raf = requestAnimationFrame(step);     // resume the loop (now animating the SWARM)
+    startCooldown(2500, btnId);
+  }
+
+  (function frame(){
+    if(_skipBatch){ finishBatch(); return; }
+    const t = Math.min(1, (performance.now()-t0)/dur);
+    // linear so each counted shot adds one molecule at a steady, readable pace
+    const target = Math.floor(t * total);
+    updateSwarm(true);                              // drift, bounce off walls, collide elastically
+    while(shown < target){
+      const s = shots[shown];
+      rotA = s.a; rotB = s.b;
+      const b = spawnShot(s.hit);                   // everything enters as a reactant for now
+      if(s.hit){ runningHits++; }                   // tracked; product forms after the phase
+      shown++;
+    }
+    v.textContent = shown+" / "+total+" shots…  "+runningHits+" reacted";
+    render();
+    if(t < 1){ batchRAF = requestAnimationFrame(frame); }
+    else { finishBatch(); }
+  })();
+}
+
+function clearStats(){
+  stats={att:0, rx:0}; refreshStats();
+  if(state==="IDLE"){ const v=el("verdict"); v.textContent="Ready"; v.style.color="var(--ink)"; }
+}
+
+// ---- wire up ----
+REACTIONS.forEach(r=>{ const o=document.createElement("option"); o.value=r.id; o.textContent=r.eq; sel.appendChild(o); });
+sel.addEventListener("change", loadReaction);
+// Div-based angle sliders (built like the energy meter so the track always fills its width).
+// Each maps a horizontal position to 0–360°, with the thumb edge sitting flush at the extrema.
+function refreshAngle(who){
+  const deg = who==="A" ? rotA : rotB;
+  const thumb = el("thumb"+who), val = el("val"+who), slider = el("angle"+who);
+  if(thumb) thumb.style.left = "calc(9px + "+(deg/360)+" * (100% - 18px))";
+  if(val) val.textContent = Math.round(deg)+"°";
+  if(slider) slider.setAttribute("aria-valuenow", Math.round(deg));
+}
+function setAngle(who, deg){
+  deg = Math.max(0, Math.min(360, Math.round(deg)));
+  if(who==="A") rotA = deg; else rotB = deg;
+  refreshAngle(who);
+}
+function angleFromPointer(who, e){
+  const r = el("angle"+who).getBoundingClientRect();
+  return Math.max(0, Math.min(360, Math.round((e.clientX - r.left) / r.width * 360)));
+}
+["A","B"].forEach(who=>{
+  const slider = el("angle"+who);
+  let dragging = false;
+  slider.addEventListener("pointerdown", e=>{
+    if(state==="SWARM") reset();
+    if(state!=="IDLE") return;
+    dragging = true;
+    try{ slider.setPointerCapture(e.pointerId); }catch(_){}
+    setAngle(who, angleFromPointer(who, e));
+    e.preventDefault();
+  });
+  slider.addEventListener("pointermove", e=>{ if(dragging && state==="IDLE") setAngle(who, angleFromPointer(who, e)); });
+  slider.addEventListener("pointerup",     ()=>{ dragging=false; });
+  slider.addEventListener("pointercancel", ()=>{ dragging=false; });
+  slider.addEventListener("keydown", e=>{
+    if(state==="SWARM") reset();
+    if(state!=="IDLE") return;
+    const cur = who==="A" ? rotA : rotB;
+    const big = e.shiftKey ? 15 : 1;
+    if(e.key==="ArrowLeft"||e.key==="ArrowDown")       setAngle(who, cur - big);
+    else if(e.key==="ArrowRight"||e.key==="ArrowUp")   setAngle(who, cur + big);
+    else if(e.key==="Home")                            setAngle(who, 0);
+    else if(e.key==="End")                             setAngle(who, 360);
+    else return;
+    e.preventDefault();
+  });
+});
+
+// Draggable energy bar: drag, click, or use arrow keys directly on the meter to set collision energy.
+const energyMeter = el("energyMeter");
+let energyDragging = false;
+function energyFromPointer(e){
+  const r = energyMeter.getBoundingClientRect();
+  return Math.max(0, Math.min(100, Math.round((e.clientX - r.left) / r.width * 100)));
+}
+function setEnergy(v){ energy = Math.max(0, Math.min(100, Math.round(v))); refreshMeter(); }
+energyMeter.addEventListener("pointerdown", e=>{
+  energyDragging = true;
+  try{ energyMeter.setPointerCapture(e.pointerId); }catch(_){}
+  setEnergy(energyFromPointer(e));
+  e.preventDefault();
+});
+energyMeter.addEventListener("pointermove", e=>{ if(energyDragging) setEnergy(energyFromPointer(e)); });
+energyMeter.addEventListener("pointerup",     ()=>{ energyDragging=false; });
+energyMeter.addEventListener("pointercancel", ()=>{ energyDragging=false; });
+energyMeter.addEventListener("keydown", e=>{
+  const big = e.shiftKey ? 10 : 1;
+  if(e.key==="ArrowLeft"||e.key==="ArrowDown")      setEnergy(energy - big);
+  else if(e.key==="ArrowRight"||e.key==="ArrowUp")  setEnergy(energy + big);
+  else if(e.key==="Home")                           setEnergy(0);
+  else if(e.key==="End")                            setEnergy(100);
+  else return;
+  e.preventDefault();
+});
+
+el("fireBtn").addEventListener("click", fire);
+el("skipBtn").addEventListener("click", ()=>{ if(batchActive) _skipBatch = true; });
+el("batch5Btn").addEventListener("click", ()=>runBatch(5, "batch5Btn"));
+el("batch10Btn").addEventListener("click", ()=>runBatch(10, "batch10Btn"));
+el("batchBtn").addEventListener("click", ()=>runBatch(50, "batchBtn"));
+el("resetBtn").addEventListener("click", reset);
+el("clearBtn").addEventListener("click", clearStats);
+el("tConditions").addEventListener("change", updateConditionsUI);
+el("tCatalyst").addEventListener("change", refreshMeter);
+el("tVib").addEventListener("change", ()=>{});
+
+loadReaction();
+})();
+</script>
+</body>
+</html>
