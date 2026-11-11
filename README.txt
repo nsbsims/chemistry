@@ -39,9 +39,9 @@ same style as the one on the collision theory simulation. To switch it on:
 The link appears as soon as a file name is there. A full web address works too.
 
 LIVE SITE
-This folder is the nsbsims/chemistry repository, published with GitHub Pages:
-    https://nsbsims.github.io/chemistry/
-    https://nsbsims.github.io/chemistry/le-chatelier/   (and so on)
+This folder is the nsbsims/nsbsims.github.io repository, published with GitHub Pages:
+    https://nsbsims.github.io/                 main page
+    https://nsbsims.github.io/le-chatelier/    (and so on)
 All links between pages are relative, so the site also works offline.
 
 NOTES ON THE CHEMISTRY
