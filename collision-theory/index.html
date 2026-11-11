@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b7285'/%3E%3Ccircle cx='25' cy='32' r='11' fill='%23fff'/%3E%3Ccircle cx='43' cy='32' r='8' fill='%2334d3ee'/%3E%3C/svg%3E">
+<script>(function(){var t=null;try{t=localStorage.getItem("nsb-theme")}catch(e){}if(t!=="light"&&t!=="dark")t=(window.matchMedia&&matchMedia("(prefers-color-scheme: light)").matches)?"light":"dark";document.documentElement.setAttribute("data-theme",t)})();</script>
 <title>Collision Theory Simulation</title>
 <style>
   :root{
@@ -136,14 +138,126 @@
   .ws-sub{ display:block; color:var(--muted); font-size:.85rem; margin-top:2px; line-height:1.4; }
   .ws-go{ flex:0 0 auto; font-family:var(--mono); font-size:.78rem; color:var(--cyan); white-space:nowrap; }
   @media (max-width:560px){ body{ padding:16px 12px 40px; } .row .cap{ flex-basis:104px; font-size:.62rem; } h1{ font-size:1.4rem; } .meter-cap{ font-size:.6rem; } .meter-cap .hint{ display:none; } }
+
+/* ===== theme + page shell: shared by every page on the site ===== */
+:root{
+  color-scheme:dark;
+  --bg:#0a0d18; --panel:#141a2b; --panel-2:#1b2236; --line:#27304a;
+  --ink:#e8edf7; --muted:#9aa7c2; --cyan:#34d3ee; --green:#34d399;
+  --red:#fb7185; --amber:#fbbf24;
+  --on-accent:#04212b; --on-status:#07261b; --thumb:#e8edf7;
+  --accent-soft:rgba(52,211,238,.45); --glow:rgba(52,211,238,.5);
+  --off-bg:#2a3550; --off-ink:#5d6a8a; --card-shadow:none;
+  --page-grad:radial-gradient(1100px 500px at 20% -10%, #161d33 0%, transparent 60%), radial-gradient(900px 500px at 100% 0%, #11203a 0%, transparent 55%);
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#9085e9;
+  --mono:ui-monospace,"SF Mono","Cascadia Code","JetBrains Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+}
+:root[data-theme="light"]{
+  color-scheme:light;
+  --bg:#f2f4f9; --panel:#ffffff; --panel-2:#eef1f7; --line:#d0d7e4;
+  --ink:#141b2d; --muted:#4f5d78; --cyan:#0b7285; --green:#0a7a52;
+  --red:#c2264b; --amber:#935400;
+  --on-accent:#ffffff; --on-status:#ffffff; --thumb:#ffffff;
+  --accent-soft:rgba(11,114,133,.35); --glow:rgba(11,114,133,.22);
+  --off-bg:#e1e6ee; --off-ink:#8c96aa; --card-shadow:0 1px 2px rgba(20,27,45,.05), 0 6px 18px -12px rgba(20,27,45,.18);
+  --page-grad:none;
+}
+/* surfaces that stay dark in both themes, like a screen */
+.screen, .chip, .tip{
+  color-scheme:dark;
+  --bg:#0a0d18; --panel:#141a2b; --panel-2:#1b2236; --line:#27304a;
+  --ink:#e8edf7; --muted:#9aa7c2; --cyan:#34d3ee; --green:#34d399; --red:#fb7185; --amber:#fbbf24;
+  --on-accent:#04212b; --on-status:#07261b; --thumb:#e8edf7; --off-bg:#2a3550; --off-ink:#5d6a8a;
+}
+.screen{ background:#0b1020; color:var(--ink); border:1px solid var(--line); border-radius:11px; }
+
+/* top bar: back link, full-screen button, light/dark switch */
+.topbar{ display:flex; align-items:center; gap:8px; margin:0 0 18px; min-height:2.25rem; }
+.topbar .back{ margin:0; }
+.topbar .sp{ flex:1 1 auto; }
+.back{ display:inline-block; font-family:var(--sans); font-size:.9rem; font-weight:600; letter-spacing:0; color:var(--muted); text-decoration:none; padding:.35rem 0; }
+.back:hover{ color:var(--cyan); }
+button.tool{ display:inline-flex; align-items:center; gap:.45rem; background:var(--panel); color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:.45rem .8rem; font-family:var(--sans); font-size:.82rem; font-weight:600; cursor:pointer; box-shadow:none; line-height:1.2; }
+button.tool:hover{ color:var(--ink); border-color:var(--cyan); background:var(--panel); }
+button.tool:focus-visible{ outline:2px solid var(--cyan); outline-offset:2px; }
+button.tool svg{ width:1rem; height:1rem; flex:0 0 auto; }
+button.tool[hidden]{ display:none; }
+@media (max-width:560px){ button.tool .lbl{ display:none; } button.tool{ padding:.55rem; } }
+
+/* how-to-use steps */
+.howto{ margin:0 0 18px; border:1px solid var(--line); border-radius:12px; background:var(--panel); box-shadow:var(--card-shadow); }
+.howto > summary{ cursor:pointer; list-style:none; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:.6rem .95rem; font-size:.84rem; font-weight:700; color:var(--muted); }
+.howto > summary::-webkit-details-marker{ display:none; }
+.howto > summary::after{ content:"Show"; font-weight:600; font-size:.78rem; color:var(--cyan); }
+.howto[open] > summary::after{ content:"Hide"; }
+.howto ol{ list-style:none; counter-reset:step; margin:0; padding:0 .95rem .9rem; display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); gap:.6rem 1.1rem; }
+.howto li{ counter-increment:step; display:flex; gap:.6rem; align-items:flex-start; font-size:.92rem; line-height:1.4; color:var(--ink); min-width:0; }
+.howto li::before{ content:counter(step); flex:0 0 1.55rem; height:1.55rem; border-radius:50%; background:var(--cyan); color:var(--on-accent); font-weight:700; font-size:.82rem; display:flex; align-items:center; justify-content:center; }
+@media (max-width:720px){ .howto ol{ grid-auto-flow:row; grid-auto-columns:auto; grid-template-columns:minmax(0,1fr); } }
+
+/* fold-outs */
+details.more{ border:1px solid var(--line); border-radius:12px; background:var(--panel); margin-bottom:10px; box-shadow:var(--card-shadow); }
+details.more > summary{ cursor:pointer; padding:.85rem 1rem; font-weight:700; font-size:.98rem; list-style:none; display:flex; align-items:center; gap:10px; color:var(--ink); }
+details.more > summary::-webkit-details-marker{ display:none; }
+details.more > summary::after{ content:"+"; margin-left:auto; font-family:var(--mono); color:var(--cyan); font-size:1.15rem; line-height:1; }
+details.more[open] > summary::after{ content:"–"; }
+details.more > summary .tag{ font-size:.76rem; font-weight:600; color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:.15rem .6rem; white-space:nowrap; }
+details.more > .body{ padding:0 1rem 1rem; color:var(--muted); font-size:.93rem; line-height:1.6; }
+details.more > .body p{ margin:0 0 10px; } details.more > .body p:last-child{ margin:0; }
+details.more > .body b{ color:var(--ink); }
+details.more > .body ul{ margin:0 0 10px; padding-left:20px; } details.more > .body li{ margin-bottom:5px; }
+details.more > .body ul ul{ margin:5px 0 0; }
+.more-head{ font-size:.84rem; font-weight:700; color:var(--muted); margin:26px 2px 10px; }
+
+/* full-screen presentation mode: larger text, page fills the screen */
+html.present{ font-size:calc(100% * var(--ui, 1.25)); }
+html.present body{ padding:16px 28px 40px; }
+html.present .wrap, html.present .wrap.wide{ max-width:none; }
+html.present .back, html.present .eyebrow, html.present .lede, html.present .howto, html.present .syl, html.present a.worksheet, html.present .more-head{ display:none; }
+html.present .topbar{ margin-bottom:6px; }
+html.present h1{ font-size:1.35rem; margin:0 0 12px; }
+
+@media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
+
+/* ===== collision theory page: match the shared look in both themes ===== */
+body{ background:var(--page-grad), var(--bg); padding:22px 20px 56px; }
+.eyebrow{ font-family:var(--sans); font-size:.8rem; font-weight:700; letter-spacing:.04em; text-transform:none; }
+h1{ font-size:1.9rem; margin:0 0 8px; line-height:1.15; }
+.lede{ font-size:1.02rem; margin:0 0 18px; max-width:68ch; }
+.panel{ border-radius:16px; padding:1.25rem; box-shadow:var(--card-shadow); }
+label.cap, .cap{ font-family:var(--sans); font-size:.84rem; font-weight:600; letter-spacing:0; text-transform:none; }
+.select-wrap, select{ border-radius:10px; }
+canvas{ border-color:#27304a; }
+.chip{ font-family:var(--sans); font-size:.76rem; font-weight:600; letter-spacing:0; text-transform:none; }
+.pill.ok, .pill.bad{ color:var(--on-status); }
+.aslider-thumb, .meter-thumb{ background:var(--thumb); box-shadow:0 0 10px var(--glow); }
+.fire{ color:var(--on-accent); box-shadow:0 0 18px -4px var(--glow); }
+.fire:hover{ background:var(--cyan); filter:brightness(1.1); }
+.fire:disabled{ background:var(--off-bg); color:var(--off-ink); filter:none; }
+.ghost:disabled{ color:var(--off-ink); }
+.batch-btn.firing{ box-shadow:0 0 22px -4px var(--glow); }
+.toggle{ color:var(--ink); font-size:.93rem; }
+.blurb{ font-size:.95rem; }
+.stat{ border-radius:12px; box-shadow:var(--card-shadow); }
+.stat .l{ font-size:.8rem; letter-spacing:0; }
+.meter-cap{ font-family:var(--sans); font-size:.76rem; }
+a.worksheet{ background:var(--panel); box-shadow:var(--card-shadow); }
+.ws-go{ font-family:var(--sans); font-size:.85rem; font-weight:600; }
+:root[data-theme="light"] .meter-mark::after{ text-shadow:none; }
+:root[data-theme="light"] .meter-mark, :root[data-theme="light"] .meter-mark.cat{ box-shadow:0 0 0 1.5px rgba(255,255,255,.9); }
+@media (max-width:560px){ body{ padding:14px 14px 40px; } h1{ font-size:1.5rem; } .row .cap{ font-size:.78rem; } .meter-cap{ font-size:.7rem; } }
+/* full screen: keep the whole chamber on screen */
+html.present .chamber-shell{ width:min(100%, calc(60vh * 820 / 380)); margin:0 auto; }
 </style>
 </head>
-<body>
+<body data-sim="chemistry/collision-theory">
 <div class="wrap">
-  <a class="back" href="../index.html">← Chemistry simulations</a>
+  <div class="topbar"><a class="back" href="../index.html">← Chemistry simulations</a><span class="sp"></span><button class="tool" id="fsBtn" type="button"></button><button class="tool" id="themeBtn" type="button"></button></div>
   <p class="eyebrow">Collision Theory · Reaction Kinetics</p>
   <h1>Collision Theory Simulation</h1>
   <p class="lede">A reaction needs two things to happen: the molecules must collide in the right <em>orientation</em>, and with enough <em>energy</em> to clear the activation barrier.</p>
+  <details class="howto" open><summary>How to use</summary><ol><li>Choose a reaction, then set the angle of each molecule.</li><li>Drag the energy bar, then press Collide.</li><li>Run ×10 or ×50 random collisions to see what fraction react.</li></ol></details>
 
   <div class="panel">
     <div class="pick">
@@ -224,11 +338,26 @@
   </div>
 
   <div class="stats">
-    <div class="stat"><div class="n" id="sAtt">0</div><div class="l">COLLISIONS FIRED</div></div>
-    <div class="stat"><div class="n" id="sRx">0</div><div class="l">REACTIONS</div></div>
-    <div class="stat"><div class="n" id="sRate">—</div><div class="l">EFFECTIVE COLLISIONS</div></div>
+    <div class="stat"><div class="n" id="sAtt">0</div><div class="l">Collisions fired</div></div>
+    <div class="stat"><div class="n" id="sRx">0</div><div class="l">Reactions</div></div>
+    <div class="stat"><div class="n" id="sRate">—</div><div class="l">Effective collisions</div></div>
   </div>
 
+<p class="more-head">Notes</p>
+<details class="more syl">
+  <summary>Syllabus links</summary>
+  <div class="body">
+    <p><b>Year 11 · Module 3 · Rates of Reactions</b><br>Inquiry question: What affects the rate of a chemical reaction?</p>
+    <ul>
+      <li>investigate the role of activation energy, collisions and molecular orientation in collision theory</li>
+      <li>explain a change in reaction rate using collision theory (ACSCH003, ACSCH046)</li>
+    </ul>
+    <p><b>Module 5 · Static and Dynamic Equilibrium</b><br>Inquiry question: What happens when chemical reactions do not go through to completion?</p>
+    <ul>
+      <li>investigate the relationship between collision theory and reaction rate in order to analyse chemical equilibrium reactions (ACSCH070, ACSCH094)</li>
+    </ul>
+  </div>
+</details>
   <a class="worksheet" href="collision-theory.pdf" target="_blank" rel="noopener">
     <span class="ws-icon" aria-hidden="true">
       <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -1120,6 +1249,104 @@ el("tCatalyst").addEventListener("change", refreshMeter);
 el("tVib").addEventListener("change", ()=>{});
 
 loadReaction();
+})();
+</script>
+<script>
+/* ===== page shell: light/dark switch, full-screen mode, progress ticks (shared by every page) ===== */
+(function(){
+  "use strict";
+  var root = document.documentElement;
+  var store = {
+    get: function(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+    set: function(k, v){ try{ localStorage.setItem(k, v); }catch(e){} },
+    del: function(k){ try{ localStorage.removeItem(k); }catch(e){} }
+  };
+  var ICON = {
+    sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>',
+    moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>',
+    full: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>',
+    exit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>'
+  };
+
+  /* ---------- light / dark ---------- */
+  var themeBtn = document.getElementById("themeBtn");
+  function systemTheme(){ return (window.matchMedia && matchMedia("(prefers-color-scheme: light)").matches) ? "light" : "dark"; }
+  function paintTheme(){
+    if(!themeBtn) return;
+    var dark = root.getAttribute("data-theme") !== "light";
+    themeBtn.innerHTML = (dark ? ICON.sun : ICON.moon) + '<span class="lbl">' + (dark ? "Light mode" : "Dark mode") + "</span>";
+    themeBtn.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+  }
+  function setTheme(t, remember){ root.setAttribute("data-theme", t); if(remember) store.set("nsb-theme", t); paintTheme(); }
+  if(themeBtn) themeBtn.addEventListener("click", function(){ setTheme(root.getAttribute("data-theme") === "light" ? "dark" : "light", true); });
+  if(window.matchMedia){
+    var mq = matchMedia("(prefers-color-scheme: light)"), follow = function(){ var s = store.get("nsb-theme"); if(s !== "light" && s !== "dark") setTheme(systemTheme(), false); };
+    if(mq.addEventListener) mq.addEventListener("change", follow); else if(mq.addListener) mq.addListener(follow);
+  }
+  paintTheme();
+
+  /* ---------- full screen: fills the screen and enlarges the simulation and its text ---------- */
+  var fsBtn = document.getElementById("fsBtn");
+  var reqFs = root.requestFullscreen || root.webkitRequestFullscreen, exitFs = document.exitFullscreen || document.webkitExitFullscreen;
+  function fsElement(){ return document.fullscreenElement || document.webkitFullscreenElement || null; }
+  function paintFs(){
+    if(!fsBtn) return;
+    var on = root.classList.contains("present");
+    fsBtn.innerHTML = (on ? ICON.exit : ICON.full) + '<span class="lbl">' + (on ? "Exit full screen" : "Full screen") + "</span>";
+    fsBtn.setAttribute("aria-label", on ? "Exit full screen" : "Full screen");
+  }
+  function scaleFor(){ return Math.max(1, Math.min(1.6, window.innerWidth / 1300)); }
+  function present(on){
+    root.classList.toggle("present", on);
+    var s = on ? scaleFor() : 1;
+    window.UI_SCALE = s; root.style.setProperty("--ui", String(s));
+    if(!on) root.style.removeProperty("--ui");
+    paintFs();
+    try{ window.dispatchEvent(new Event("resize")); }catch(e){}
+  }
+  if(fsBtn){
+    if(!reqFs || !exitFs){ fsBtn.hidden = true; }
+    else {
+      fsBtn.addEventListener("click", function(){
+        if(fsElement()){ exitFs.call(document); return; }
+        var p = reqFs.call(root); if(p && p.catch) p.catch(function(){ present(false); });
+      });
+      var onChange = function(){ present(!!fsElement()); };
+      document.addEventListener("fullscreenchange", onChange); document.addEventListener("webkitfullscreenchange", onChange);
+      window.addEventListener("resize", function(){
+        if(!root.classList.contains("present")) return;
+        var s = scaleFor(); if(Math.abs(s - (window.UI_SCALE || 1)) > 0.01){ window.UI_SCALE = s; root.style.setProperty("--ui", String(s)); }
+      });
+    }
+    paintFs();
+  }
+
+  /* ---------- how-to box: remember if it was closed ---------- */
+  var how = document.querySelector("details.howto");
+  if(how){
+    if(store.get("nsb-howto") === "closed") how.removeAttribute("open");
+    how.addEventListener("toggle", function(){ store.set("nsb-howto", how.open ? "open" : "closed"); });
+  }
+
+  /* ---------- progress: remember which simulations this device has opened ---------- */
+  function seen(){ try{ return JSON.parse(store.get("nsb-seen") || "{}") || {}; }catch(e){ return {}; } }
+  var here = document.body.getAttribute("data-sim");
+  if(here){ var m = seen(); if(!m[here]){ m[here] = 1; store.set("nsb-seen", JSON.stringify(m)); } }
+  function paintTicks(){
+    var m = seen(), cards = document.querySelectorAll("[data-sim-link]"), n = 0, i;
+    for(i = 0; i < cards.length; i++){ var on = !!m[cards[i].getAttribute("data-sim-link")]; cards[i].classList.toggle("seen", on); if(on) n++; }
+    var outs = document.querySelectorAll("[data-progress]");
+    for(i = 0; i < outs.length; i++) outs[i].textContent = cards.length ? n + " of " + cards.length + " opened" : "";
+    var resets = document.querySelectorAll("[data-reset-progress]");
+    for(i = 0; i < resets.length; i++) resets[i].hidden = n === 0;
+  }
+  window.nsbPaintTicks = paintTicks;
+  document.addEventListener("click", function(e){
+    var t = e.target && e.target.closest ? e.target.closest("[data-reset-progress]") : null;
+    if(t){ e.preventDefault(); store.del("nsb-seen"); paintTicks(); }
+  });
+  window.addEventListener("pageshow", paintTicks);
+  paintTicks();
 })();
 </script>
 </body>

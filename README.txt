@@ -5,7 +5,20 @@ OPENING THE SIMULATIONS
 Double-click index.html. It is the main page and links to all fourteen simulations.
 Every page is one self-contained file. Nothing needs to be installed and no
 internet connection is needed. The only links that go online are the two
-sources on the cycad page.
+sources on the cycad page and the "All subjects" link on the main page.
+
+ON EVERY PAGE
+- Light mode / Dark mode button (top right). It follows the device setting until
+  someone presses it, then that device remembers the choice.
+- Full screen button on each simulation. It fills the screen and enlarges the
+  simulation and its text, for showing at the front of the room. Esc exits.
+- How to use: three short steps at the top of each simulation. Students can hide it.
+- Questions and notes fold away until opened. "Syllabus links" lists the syllabus
+  content each simulation covers.
+- Progress ticks: the main page marks simulations a device has opened. This is
+  stored in that browser only. "Clear ticks" resets it.
+- Speed (1x, 2x, 4x) on the Dynamic Equilibrium Box, Dissolving Up Close and
+  Cycad Detoxification.
 
 WHAT IS IN THIS FOLDER
 index.html               Main page
@@ -20,9 +33,10 @@ keq-builder/             7   Keq Builder and Q vs K
 ice-trainer/             8   ICE Table Trainer
 colorimeter/             9   Virtual Colorimeter Prac
 dissolving/              10  Dissolving Up Close
-precipitation/           11  Precipitation Spot Plate
+precipitation/           11  Precipitation Spot Plate (9 cations x 8 anions, Module 8 ions)
 ksp/                     12  Will It Precipitate?
 cycad/                   13  Cycad Detoxification
+thumbs/                      Pictures used on the main pages (640 x 400)
 
 ADDING A WORKSHEET LINK
 Each simulation has a hidden "Worksheet" link at the bottom of the page, in the
